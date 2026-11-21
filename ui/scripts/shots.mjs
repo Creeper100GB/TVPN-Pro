@@ -1,0 +1,118 @@
+// Visual check for the UI shell. Serves the static build, walks every state,
+// captures light/dark screenshots and fails on console errors or layout overflow.
+//
+//   bun run preview          # in another terminal (port 4173)
+//   bun run shots
+//
+// Screenshots land in ui/.artifacts/ (gitignored).
+
+import { mkdir } from 'node:fs/promises';
+import { chromium } from 'playwright';
+
+const base = process.env.UI_BASE ?? 'http://127.0.0.1:4173';
+const out = '.artifacts';
+const scale = Number(process.env.SHOT_SCALE ?? 2);
+
+await mkdir(out, { recursive: true });
+
+const browser = await chromium.launch();
+const page = await browser.newPage({
+	viewport: { width: 1120, height: 780 },
+	deviceScaleFactor: scale,
+	colorScheme: 'light'
+});
+
+const problems = [];
+page.on('console', (message) => {
+	if (message.type() === 'error') problems.push(`console: ${message.text()}`);
+});
+page.on('pageerror', (error) => problems.push(`pageerror: ${error}`));
+
+await page.goto(base, { waitUntil: 'networkidle' });
+
+async function setTheme(mode) {
+	await page.evaluate((value) => localStorage.setItem('tvpn-theme', value), mode);
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(150);
+}
+
+async function jump(state) {
+	await page.getByRole('button', { name: 'Demo-Zustände', exact: true }).click();
+	await page.getByRole('button', { name: state, exact: true }).click();
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(350);
+}
+
+async function shot(name) {
+	await page.screenshot({ path: `${out}/${name}.png` });
+}
+
+async function assertLayout(label) {
+	const metrics = await page.evaluate(() => ({
+		scrollWidth: document.documentElement.scrollWidth,
+		innerWidth: window.innerWidth,
+		scrollHeight: document.documentElement.scrollHeight,
+		innerHeight: window.innerHeight,
+		windowRadius: getComputedStyle(document.querySelector('.window')).borderRadius,
+		bodyBg: getComputedStyle(document.body).backgroundColor,
+		dark: document.documentElement.classList.contains('dark')
+	}));
+
+	if (metrics.scrollWidth > metrics.innerWidth + 1) {
+		problems.push(`${label}: horizontal overflow (${metrics.scrollWidth} > ${metrics.innerWidth})`);
+	}
+	if (metrics.scrollHeight > metrics.innerHeight + 1) {
+		problems.push(`${label}: vertical overflow (${metrics.scrollHeight} > ${metrics.innerHeight})`);
+	}
+	if (parseFloat(metrics.windowRadius) < 20) {
+		problems.push(`${label}: window is not rounded (${metrics.windowRadius})`);
+	}
+	return metrics;
+}
+
+const states = ['OFF', 'PREFLIGHT', 'ARMING', 'PORTAL', 'VPN_UP', 'TOR_UP', 'READY', 'DEGRADED', 'FAILCLOSED', 'TEARDOWN', 'RECOVERY'];
+
+for (const theme of ['light', 'dark']) {
+	await setTheme(theme);
+	for (const state of states) {
+		await jump(state);
+		await shot(`${theme}-state-${state.toLowerCase()}`);
+		if (state === 'OFF' || state === 'READY' || state === 'FAILCLOSED') {
+			await assertLayout(`${theme}/${state}`);
+		}
+	}
+
+	await jump('READY');
+	await page.getByRole('button', { name: 'Einstellungen öffnen' }).click();
+	await page.waitForTimeout(350);
+	await shot(`${theme}-settings`);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+
+	await page.getByRole('button', { name: 'Demo-Zustände', exact: true }).click();
+	await page.getByRole('button', { name: 'Sitzungs-Zusammenfassung zeigen' }).click();
+	await page.waitForTimeout(350);
+	await shot(`${theme}-summary`);
+	await page.keyboard.press('Escape');
+
+	// Narrow window: layout must collapse to one column without sideways scrolling.
+	await page.setViewportSize({ width: 520, height: 860 });
+	await page.waitForTimeout(250);
+	await jump('READY');
+	await shot(`${theme}-narrow`);
+	await assertLayout(`${theme}/narrow`);
+	await page.setViewportSize({ width: 1120, height: 780 });
+}
+
+const first = await assertLayout('final');
+if (first.dark) problems.push('final: dark mode did not reset');
+
+await browser.close();
+
+if (problems.length > 0) {
+	console.error('UI check failed:');
+	for (const problem of problems) console.error(` - ${problem}`);
+	process.exit(1);
+}
+
+console.log(`UI check passed. Screenshots in ${out}/`);

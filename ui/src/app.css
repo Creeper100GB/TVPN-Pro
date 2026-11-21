@@ -1,0 +1,116 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+	--font-sans:
+		'Inter Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable',
+		'Segoe UI', system-ui, sans-serif;
+	--radius-card: 1.25rem;
+	--radius-window: 1.75rem;
+	--ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme inline {
+	--color-canvas: var(--canvas);
+	--color-window: var(--window);
+	--color-card: var(--card);
+	--color-card-strong: var(--card-strong);
+	--color-ink: var(--ink);
+	--color-muted: var(--muted);
+	--color-line: var(--line);
+	--color-accent: var(--accent);
+	--color-ok: var(--ok);
+	--color-warn: var(--warn);
+	--color-danger: var(--danger);
+}
+
+:root {
+	color-scheme: light;
+	--canvas: #e8ebf0;
+	--window: rgba(255, 255, 255, 0.62);
+	--card: rgba(255, 255, 255, 0.72);
+	--card-strong: rgba(255, 255, 255, 0.9);
+	--ink: #0e1116;
+	--muted: #6a7280;
+	--line: rgba(15, 23, 42, 0.09);
+	--accent: #0a84ff;
+	--ok: #17a34a;
+	--warn: #c2740a;
+	--danger: #dc2f26;
+	--shadow-window: 0 40px 90px -30px rgba(15, 23, 42, 0.45);
+	--shadow-card: 0 10px 30px -18px rgba(15, 23, 42, 0.35);
+	--halo: 0.55;
+}
+
+.dark {
+	color-scheme: dark;
+	--canvas: #0a0b0d;
+	--window: rgba(26, 27, 30, 0.72);
+	--card: rgba(40, 41, 45, 0.66);
+	--card-strong: rgba(48, 49, 54, 0.9);
+	--ink: #f4f5f7;
+	--muted: #9aa1aa;
+	--line: rgba(255, 255, 255, 0.09);
+	--accent: #0a84ff;
+	--ok: #30d158;
+	--warn: #ffb340;
+	--danger: #ff453a;
+	--shadow-window: 0 40px 120px -30px rgba(0, 0, 0, 0.85);
+	--shadow-card: 0 10px 30px -18px rgba(0, 0, 0, 0.8);
+	--halo: 0.35;
+}
+
+html,
+body {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	font-family: var(--font-sans);
+	font-feature-settings: 'cv11', 'ss01';
+	letter-spacing: -0.012em;
+	color: var(--ink);
+	background-color: var(--canvas);
+	overflow: hidden;
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+
+body::before {
+	content: '';
+	position: fixed;
+	inset: -10%;
+	z-index: -1;
+	background:
+		radial-gradient(46% 40% at 12% 8%, color-mix(in oklab, var(--accent) 30%, transparent), transparent 72%),
+		radial-gradient(40% 36% at 88% 12%, rgba(124, 92, 255, 0.28), transparent 72%),
+		radial-gradient(55% 45% at 50% 108%, rgba(0, 199, 190, 0.2), transparent 72%);
+	filter: blur(30px) saturate(1.1);
+}
+
+::selection {
+	background: color-mix(in oklab, var(--accent) 28%, transparent);
+}
+
+button,
+[role='button'] {
+	-webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+	outline: 2px solid color-mix(in oklab, var(--accent) 70%, transparent);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}

@@ -24,6 +24,18 @@ test:
 pscheck:
     powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-powershell.ps1
 
+# UI: type check (Svelte + TypeScript)
+ui-check:
+    bun --cwd ui run check
+
+# UI: production build
+ui-build:
+    bun --cwd ui run build
+
+# UI: screenshots and layout assertions (needs: bun --cwd ui run preview)
+ui-shots:
+    bun --cwd ui run shots
+
 # Log redaction gate (self-test against the fixtures)
 redact:
     powershell -NoProfile -ExecutionPolicy Bypass -File tests/log-redaction/check-log-redaction.ps1 -SelfTest

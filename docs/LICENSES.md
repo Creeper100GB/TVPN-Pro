@@ -31,8 +31,12 @@ Nicht mitgeliefert, nur genutzt: Windows Defender (`MpCmdRun.exe`) ist Teil von 
 | Rust standard library / Kern-Crates | Dienst | MIT oder Apache-2.0 (pro Crate) | ungeprüft |
 | Tauri | UI-Rahmen | MIT oder Apache-2.0 | ungeprüft |
 | Svelte / SvelteKit | UI | MIT | ungeprüft |
+| Vite | Build | MIT | ungeprüft |
 | Tailwind CSS | UI | MIT | ungeprüft |
 | Lucide | Icons | ISC | ungeprüft |
+| Inter (Fontsource) | Schrift, lokal gebündelt | OFL-1.1 | ungeprüft |
+| TypeScript | Build | Apache-2.0 | ungeprüft |
+| Playwright | Visuelle Prüfung, nur Dev-Abhängigkeit | Apache-2.0 | ungeprüft |
 | Windows-/`windows`-Crate | Win32-APIs | MIT oder Apache-2.0 | ungeprüft |
 
 `cargo deny` und `npm audit` werden in Phase 2 Teil der CI; die vollständige Liste entsteht aus `Cargo.lock` und `package-lock.json` und wird hier nachgetragen.

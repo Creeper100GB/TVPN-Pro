@@ -5,14 +5,35 @@ dist/
 *.exe
 *.msi
 *.dmg
+*.app
+__pycache__/
+*.pyc
+
 # local secrets and logs
 .env
+.env.local
+.env.*.local
 *.pem
 *.key
 *.log
 logs/
+
 # editor / OS
 .vscode/
 .idea/
 Thumbs.db
 .DS_Store
+
+# opencode session state (agent definitions stay tracked)
+.opencode/goals/
+.opencode/state/
+.opencode/plans/
+
+# test artifacts (VM transcripts, snapshots, scratch)
+tests/vm/out/
+**/TestResults/
+.playwright-mcp/
+.pi-lens/
+ui/.artifacts/
+ui/build/
+ui/.svelte-kit/
