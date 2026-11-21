@@ -19,7 +19,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 
 **Shell-Download (vorgezogen):** Die Tauri-Shell lädt bereits echt (`reqwest`): Routen `direct` und `tor` (lokaler SOCKS-Proxy 9150), SHA-256, Defender-Scan, Abbruch löscht die Datei. `vpn` und Torrents lehnen ab, bis `tvpnd` und die Firewall stehen. Damit sind Teile von P4-04 vorab erledigt; aria2 und die VPN-Route bleiben P4-03/P4-09.
 
-**Stand P2-01/P2-02 (läuft):** Der host-sichere Kern in `service/core` ist fertig und getestet (45 Unit-Tests): Zustandsautomat nach Vertrag, Settings-Whitelist mit Alles-oder-nichts-Patch, URL-Regeln, IPC-Envelope mit Größen-/ID-/Versionsprüfung, Redaktions-Scanner. **Offen:** Named-Pipe-Server, `tracing`-Anbindung mit Redaktions-Layer, Hauptprogramm `tvpnd`. Übergabe: `docs/handoffs/P2-01-core.md`.
+**Stand P2-01/P2-02 (läuft):** Der host-sichere Kern in `service/core` ist fertig und getestet (45 Unit-Tests): Zustandsautomat nach Vertrag, Settings-Whitelist mit Alles-oder-nichts-Patch, URL-Regeln, IPC-Envelope mit Größen-/ID-/Versionsprüfung, Redaktions-Scanner. `service/tvpnd` hat den Protokollkern (`hello`, `get_status`, `get_settings`, `set_settings`, 9 Unit-Tests) und den Named-Pipe-Transport mit Token-Datei, DACL, 64-KiB-Limit und einem echten Pipe-Integrationstest. **Offen:** Windows-Dienst-Wrapper, `tracing`-Anbindung mit Redaktions-Layer, privilegierte Kommandos, UI-Client. Übergabe: `docs/handoffs/P2-01-core.md`.
 
 ## Phase 1: Spikes (Gate G1), Details in `docs/SPIKES.md`
 | ID | Rolle | Aufgabe | Abnahme | Status |

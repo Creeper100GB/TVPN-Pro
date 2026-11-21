@@ -38,6 +38,8 @@ Nicht mitgeliefert, nur genutzt: Windows Defender (`MpCmdRun.exe`) ist Teil von 
 | TypeScript | Build | Apache-2.0 | ungeprüft |
 | Playwright | Visuelle Prüfung, nur Dev-Abhängigkeit | Apache-2.0 | ungeprüft |
 | serde, serde_json (direkt) | IPC-Serialisierung | MIT oder Apache-2.0 | ungeprüft |
+| base64 (tvpnd) | Token-Kodierung (base64url) | MIT oder Apache-2.0 | ungeprüft |
+| getrandom (tvpnd) | CSPRNG für das Sitzungs-Token | MIT oder Apache-2.0 | ungeprüft |
 | reqwest, tokio, sha2, futures-util (Tauri-Shell) | Download-Engine | MIT oder Apache-2.0 | ungeprüft |
 | Transitive Crates laut `Cargo.lock` (itoa, memchr, zmij, proc-macro2, quote, syn, unicode-ident, serde_core, serde_derive, hyper, native-tls u. a.) | Build und Laufzeit | MIT oder Apache-2.0 (pro Crate) | ungeprüft, `cargo deny` folgt in Phase 2 |
 | Windows-/`windows`-Crate | Win32-APIs | MIT oder Apache-2.0 | ungeprüft |

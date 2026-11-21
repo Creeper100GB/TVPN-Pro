@@ -1,13 +1,10 @@
-//! Console front end for the protocol core.
-//!
-//! The Windows service and named-pipe transport are added next; this binary
-//! lets the protocol be exercised with NDJSON on stdin/stdout on any host.
+//! `tvpnd` front end: named pipe on Windows, NDJSON console elsewhere.
 
 use std::io::{self, BufRead, Write};
 use tvpn_core::ipc::{parse_request, Response};
 use tvpnd::Service;
 
-fn main() {
+fn console() {
     let token = match std::env::var("TVPN_TOKEN") {
         Ok(value) if !value.is_empty() => value,
         _ => {
@@ -44,4 +41,23 @@ fn main() {
             break;
         }
     }
+}
+
+#[cfg(windows)]
+fn main() {
+    if std::env::args().any(|argument| argument == "--console") {
+        console();
+        return;
+    }
+
+    let token = tvpnd::pipe::generate_token();
+    if let Err(error) = tvpnd::pipe::run(&token) {
+        eprintln!("tvpnd: {error}");
+        std::process::exit(1);
+    }
+}
+
+#[cfg(not(windows))]
+fn main() {
+    console();
 }

@@ -16,6 +16,9 @@ pub const SERVICE_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Protocol version from `contracts/ipc-v0.md`.
 pub const PROTOCOL_VERSION: u8 = 0;
 
+#[cfg(windows)]
+pub mod pipe;
+
 /// One service session. The caller owns the transport and the token.
 pub struct Service {
     state: State,
@@ -38,6 +41,11 @@ impl Service {
             authorized: false,
             token: token.into(),
         }
+    }
+
+    /// Ends the authentication of the previous pipe connection.
+    pub fn reset_auth(&mut self) {
+        self.authorized = false;
     }
 
     /// Handles exactly one request and returns exactly one response.
