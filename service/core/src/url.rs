@@ -17,6 +17,8 @@ pub enum UrlError {
     IpLiteral,
     LocalHost,
     InvalidHost,
+    NotMagnet,
+    InvalidMagnet,
 }
 
 impl UrlError {
@@ -36,6 +38,8 @@ impl UrlError {
             UrlError::IpLiteral => "ip_literal",
             UrlError::LocalHost => "local_host",
             UrlError::InvalidHost => "host",
+            UrlError::NotMagnet => "magnet",
+            UrlError::InvalidMagnet => "magnet_hash",
         }
     }
 }
@@ -94,6 +98,38 @@ pub fn validate(input: &str) -> Result<(), UrlError> {
     }
 
     validate_host(host)
+}
+
+/// Validates a magnet link for the VPN-only bulk route.
+///
+/// Only `xt=urn:btih:` is read; every other parameter is ignored. BitTorrent v2
+/// (`btmh`) is not accepted.
+pub fn validate_magnet(input: &str) -> Result<(), UrlError> {
+    if input.is_empty() {
+        return Err(UrlError::NotMagnet);
+    }
+    if input.len() > MAX_URL_BYTES {
+        return Err(UrlError::TooLong);
+    }
+
+    let lower = input.to_ascii_lowercase();
+    let Some(query) = lower.strip_prefix("magnet:?") else {
+        return Err(UrlError::NotMagnet);
+    };
+
+    let hash = query
+        .split('&')
+        .find_map(|part| part.strip_prefix("xt=urn:btih:"))
+        .ok_or(UrlError::InvalidMagnet)?;
+
+    let hex = hash.len() == 40 && hash.chars().all(|c| c.is_ascii_hexdigit());
+    let base32 = hash.len() == 32 && hash.chars().all(|c| matches!(c, 'a'..='z' | '2'..='7'));
+
+    if hex || base32 {
+        Ok(())
+    } else {
+        Err(UrlError::InvalidMagnet)
+    }
 }
 
 fn validate_host(host: &str) -> Result<(), UrlError> {
@@ -253,5 +289,38 @@ mod tests {
     fn errors_carry_machine_details() {
         assert_eq!(UrlError::LocalHost.detail(), "local_host");
         assert_eq!(UrlError::NotHttps.code(), "E_DOWNLOAD_URL_INVALID");
+    }
+
+    #[test]
+    fn accepts_valid_magnets() {
+        assert_eq!(
+            validate_magnet("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567"),
+            Ok(())
+        );
+        assert_eq!(
+            validate_magnet("magnet:?dn=image&xt=urn:btih:abcdefghijklmnopqrstuvwxyz234567"),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn rejects_bad_magnets() {
+        assert_eq!(
+            validate_magnet("https://example.org/x"),
+            Err(UrlError::NotMagnet)
+        );
+        assert_eq!(validate_magnet(""), Err(UrlError::NotMagnet));
+        assert_eq!(
+            validate_magnet("magnet:?dn=name"),
+            Err(UrlError::InvalidMagnet)
+        );
+        assert_eq!(
+            validate_magnet("magnet:?xt=urn:btih:xyz"),
+            Err(UrlError::InvalidMagnet)
+        );
+        assert_eq!(
+            validate_magnet("magnet:?xt=urn:btih:01890189018901890189018901890189"),
+            Err(UrlError::InvalidMagnet)
+        );
     }
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Activity, Fingerprint, Globe, Monitor, ShieldAlert, Wifi } from 'lucide-svelte';
+	import { Activity, Fingerprint, Globe, Monitor, Network, ShieldAlert, Wifi } from 'lucide-svelte';
 	import type { BannerKind } from '../types';
 
 	let { kind }: { kind: BannerKind } = $props();
@@ -40,6 +40,11 @@
 			icon: Monitor,
 			tone: 'warn',
 			text: 'Hostname unverändert. Sitzungen im selben Netz können verknüpft werden.'
+		},
+		vpn_route: {
+			icon: Network,
+			tone: 'warn',
+			text: 'VPN-Route aktiv: Peers sehen deine VPN-IP, nicht die echte. Das ist kein Tor-Schutz.'
 		}
 	};
 

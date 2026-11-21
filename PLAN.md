@@ -76,7 +76,7 @@ tvpn-pro/
 
 **4.2 Regelwerk (Windows Filtering Platform).** Eigener Provider und Sublayer mit fester GUID. Filter werden bei ARMING gesetzt und sind **persistent**, damit sie auch halten, wenn der Dienst abstürzt (fail-closed).
 1. Default: jeder ausgehende Verkehr blockiert (IPv4 und IPv6, TCP und UDP).
-2. Erlaubt: Loopback; DHCP/ARP/NDP nur soweit für den Link nötig; Mullvad-Daemon zum gewählten VPN-Endpunkt; `tor.exe` ausgehend **nur über den VPN-Adapter**; Allowlist-Apps **nur zu den Tor-Ports auf Loopback**; Fallback-Browser nur über den VPN-Adapter und nur, wenn aktiviert.
+2. Erlaubt: Loopback; DHCP/ARP/NDP nur soweit für den Link nötig; Mullvad-Daemon zum gewählten VPN-Endpunkt; `tor.exe` ausgehend **nur über den VPN-Adapter**; Allowlist-Apps **nur zu den Tor-Ports auf Loopback**; Fallback-Browser nur über den VPN-Adapter und nur, wenn aktiviert; Torrent-Client nur über den VPN-Adapter und nur bei `torrent_mode = vpn_only` (kein DHT/LPD/PEX/UPnP, keine eingehenden Verbindungen).
 3. Windows Update, Cloud-Sync, Telemetrie und fremde Apps bleiben offline, solange die App an ist.
 4. Block-Ereignisse werden mitgelesen (für den Wächter, ohne Ziele zu speichern).
 5. Ob die Interface-Bedingung auf der gewählten Filterebene verfügbar ist (sonst Quell-IP des VPN-Adapters), klärt **Spike S1**.
@@ -138,7 +138,8 @@ Zustände: `OFF, PREFLIGHT, ARMING, PORTAL, VPN_UP, TOR_UP, READY, DEGRADED, FAI
 - Keine Add-ons, kein Marionette/WebDriver (würde `navigator.webdriver` setzen).
 
 **Downloader**
-- aria2 (Default): RPC nur Loopback mit Secret-Token, `--all-proxy` auf Port B (HTTP-CONNECT, daher nur HTTPS-Ziele; HTTP-Links werden abgelehnt), kein BitTorrent/DHT/LPD, wenige Verbindungen pro Server, `--continue` für Resume.
+- aria2 (Default): RPC nur Loopback mit Secret-Token, `--all-proxy` auf Port B (HTTP-CONNECT, daher nur HTTPS-Ziele; HTTP-Links werden abgelehnt), kein BitTorrent/DHT/LPD auf der Tor-Route, wenige Verbindungen pro Server, `--continue` für Resume.
+- **Bulk-Route** (`torrent_mode = vpn_only`): Torrents und große Images laufen **nur über den VPN-Adapter**, nie über Tor. DHT, Local Peer Discovery, Peer Exchange, UPnP/NAT-PMP und eingehende Verbindungen sind aus; die Firewall erlaubt auf dieser Route ausschließlich den Torrent-Client. Peers sehen die VPN-IP, der VPN-Anbieter sieht den Traffic, der ISP sieht VPN-Traffic. Banner `vpn_route` bleibt sichtbar, solange die Route aktiv ist. Standard ist `blocked`.
 - Free Download Manager nur als Adapter, wenn **S4** zeigt, dass er sauber über den Proxy geht und Torrent aus ist.
 - Übergabe: Link-Feld, optional Zwischenablage-Beobachtung (nur wenn eingeschaltet). Hoster-Seiten mit Timer oder Captcha lädt der Tor Browser selbst.
 
@@ -264,12 +265,13 @@ Alles in der Windows-11-VM mit Snapshots vor jedem Test. Als Gegenstelle dient e
 | Scanner gibt falsche Sicherheit | Mittel | Grenzen in der UI, MOTW, Firewall-Allowlist, späterer Sandbox-Schalter |
 | Öffentliches WLAN mit Portal blockiert alles | Hoch | Zustand PORTAL, Spike S6 |
 | Fremd-Binaries kompromittiert, GPL-Fragen | Mittel | Version und Hash pinnen, Signaturen prüfen, `LICENSES.md` |
+| Torrent über VPN wird für Anonymität gehalten | Mittel | Default `blocked`, Banner `vpn_route`, ehrliche Texte: Peers und Anbieter sehen die VPN-IP |
 | Dienst als privilegierter Prozess angreifbar | Mittel | Minimale IPC, Pipe-ACL, Hash-Check vor Start, Review |
 | macOS deutlich aufwendiger | Hoch | Spike S7, Windows zuerst fertig |
 
 ## 12. Default-Entscheidungen (Mensch kann widersprechen)
 
-Rust + Tauri · Fokus-Modus (Blocken statt Umleiten) in v1, TUN erst später · Reihenfolge VPN → Tor · Mullvad (Kontonummer, anonyme Zahlung) · aria2 als Standard-Downloader, FDM als Adapter · Windows Defender plus ClamAV · Mullvad Browser als Fallback-Browser · Hostname einmalig neutralisieren (Plan A) · Doku Deutsch, Code und Commits Englisch.
+Rust + Tauri · Fokus-Modus (Blocken statt Umleiten) in v1, TUN erst später · Reihenfolge VPN → Tor · Mullvad (Kontonummer, anonyme Zahlung) · aria2 als Standard-Downloader, FDM als Adapter · Windows Defender plus ClamAV · Mullvad Browser als Fallback-Browser · Hostname einmalig neutralisieren (Plan A) · Torrents standardmäßig blockiert, VPN-Bulk-Route nur auf ausdrücklichen Wunsch · Doku Deutsch, Code und Commits Englisch.
 
 ## 13. Nächste Schritte (jetzt)
 

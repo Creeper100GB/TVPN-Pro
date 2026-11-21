@@ -67,7 +67,7 @@ Alle Kommandos sind idempotent, außer `downloads.add` (jeder Aufruf startet ein
 | `get_status` | – | vollständiger Status (6.1) | Snapshot für UI und Resync |
 | `get_settings` | – | vollständige Einstellungen (6.2) | lesen |
 | `set_settings` | `settings` (nur Schlüssel aus 6.2) | vollständige Einstellungen nach dem Schreiben | ändern; ungültig → `E_IPC_BAD_SCHEMA` |
-| `downloads.add` | `url` (HTTPS, siehe 7) | `id` | Link an den Downloader; URL nur im Speicher |
+| `downloads.add` | `url` (HTTPS, siehe 7) **oder** `torrent` (magnet, siehe 7.1); `route: "tor" \| "vpn"` (Default `tor`) | `id` | Link an den Downloader; URL nur im Speicher |
 | `downloads.control` | `action: "pause_all" \| "resume_all" \| "cancel"`, `id` nur bei `cancel` | `affected: int` | Downloads steuern |
 | `open_in_fallback` | `url` (optional, HTTPS) | `opened: bool` | Fallback-Browser nur über den VPN-Adapter |
 | `scan.report` | `file_id` | `verdict`, `reasons[]`, `scanned_at` | Scan-Bericht lesen |
@@ -94,7 +94,7 @@ Was die UI **nie** sendet und der Dienst **nie** akzeptiert: Dateipfade, Program
 
 Zustellung: geordnet pro Verbindung, **best effort**. Der Dienst puffert 256 Ereignisse pro Verbindung. Läuft der Puffer über, verwirft er die ältesten und sendet `resync_required`. Die UI darf sich nie auf Ereignisse als einzige Wahrheit verlassen; nach jeder Verbindung gilt `get_status`.
 
-Banner-Arten: `portal_open`, `fallback_active`, `degraded`, `failclosed`, `mac_unsupported`, `hostname_unchanged`.
+Banner-Arten: `portal_open`, `fallback_active`, `degraded`, `failclosed`, `mac_unsupported`, `hostname_unchanged`, `vpn_route`.
 
 ## 6. Datenmodelle
 
@@ -127,7 +127,7 @@ Banner-Arten: `portal_open`, `fallback_active`, `degraded`, `failclosed`, `mac_u
 | `tor_bridges` | bool | `false` | – |
 | `block_fallback` | enum | `auto` | `off`, `suggest`, `auto` |
 | `mac_mode` | enum | `random` | `random`, `original` |
-| `torrent_block` | bool | `true` | – |
+| `torrent_mode` | enum | `blocked` | `blocked`, `vpn_only` |
 | `net_mode` | enum | `focus` | nur `focus` in v0 |
 | `clipboard_watch` | bool | `false` | – |
 | `scanner_hash_lookup` | bool | `false` | – |
@@ -163,6 +163,15 @@ Gilt für `downloads.add` und `open_in_fallback`:
 - keine Userinfo (`user:pass@`)
 - maximale Länge 8192 Zeichen
 - keine URL in Logs, keine Persistenz, kein Echo in Antworten oder Ereignissen
+
+### 7.1 Torrent-Regeln
+
+- `route: "vpn"` ist nur erlaubt, wenn `torrent_mode = "vpn_only"`. Sonst `E_DOWNLOAD_ROUTE_FORBIDDEN`.
+- `torrent` (magnet) ist nur mit `route: "vpn"` erlaubt. Mit `route: "tor"` → `E_DOWNLOAD_TORRENT_BLOCKED`.
+- Magnet-Format: `magnet:?xt=urn:btih:<40 Hex oder 32 Base32>`, optional `&dn=`, keine weiteren Parameter werden ausgewertet. Maximale Länge 8192 Zeichen.
+- `.torrent`-Dateien sind normale HTTPS-Links und laufen über `url` mit `route: "vpn"`.
+- Auf der VPN-Route gilt: kein DHT, kein Local Peer Discovery, kein Peer Exchange, kein UPnP/NAT-PMP, keine eingehenden Verbindungen. Peers sehen die VPN-IP, nie die echte.
+- Die Route wird im Ereignis `download_event` als `route` mitgeführt, damit die UI den Banner `vpn_route` zeigen kann.
 
 ## 8. Zustände und Übergänge
 
@@ -228,6 +237,8 @@ Präfixe bleiben stabil; konkrete Codes dürfen innerhalb eines Präfixes ergän
 | `E_LAUNCH_VERSION_TOO_OLD` | Tor Browser unter Mindestversion |
 | `E_DOWNLOAD_URL_INVALID` | URL verletzt Abschnitt 7 |
 | `E_DOWNLOAD_HTTP_REJECTED` | nur HTTPS erlaubt |
+| `E_DOWNLOAD_TORRENT_BLOCKED` | Torrent auf der Tor-Route oder `torrent_mode = blocked` |
+| `E_DOWNLOAD_ROUTE_FORBIDDEN` | `route: "vpn"` ohne `torrent_mode = "vpn_only"` |
 | `E_DOWNLOAD_PROXY_FAILED` | Downloader kommt nicht über Port B |
 | `E_SCAN_ENGINE_MISSING` | keine Scan-Engine verfügbar |
 | `E_SCAN_TIMEOUT` | Scan lief in das Zeitlimit |

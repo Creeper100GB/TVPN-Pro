@@ -4,6 +4,7 @@ import type {
 	AppState,
 	BannerKind,
 	DownloadItem,
+	DownloadRoute,
 	ScanVerdict,
 	Settings,
 	SessionSummary,
@@ -39,7 +40,7 @@ const defaultSettings: Settings = {
 	torBridges: false,
 	blockFallback: 'auto',
 	macMode: 'random',
-	torrentBlock: true,
+	torrentMode: 'blocked',
 	clipboardWatch: false,
 	scannerHashLookup: false,
 	portalTimeoutSec: 180
@@ -161,17 +162,68 @@ export function validateDownloadUrl(raw: string): string | null {
 	return null;
 }
 
-export function addDownload(raw: string): { ok: boolean; error: string | null } {
-	const error = validateDownloadUrl(raw);
-	if (error) return { ok: false, error };
+export function addDownload(
+	raw: string,
+	route: DownloadRoute = 'tor'
+): { ok: boolean; error: string | null } {
+	const value = raw.trim();
 
-	const parsed = new URL(raw);
-	const label = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() ?? 'download.bin');
+	if (route === 'vpn' && app.settings.torrentMode !== 'vpn_only') {
+		return {
+			ok: false,
+			error: 'Die VPN-Route ist ausgeschaltet. Aktiviere sie in den Einstellungen.'
+		};
+	}
+
+	const isMagnet = value.toLowerCase().startsWith('magnet:');
+	if (isMagnet) {
+		if (route !== 'vpn') return { ok: false, error: 'Torrents laufen nur über die VPN-Route.' };
+		const magnetError = validateMagnet(value);
+		if (magnetError) return { ok: false, error: magnetError };
+	} else {
+		const urlError = validateDownloadUrl(value);
+		if (urlError) return { ok: false, error: urlError };
+	}
+
+	const label = isMagnet ? magnetLabel(value) : labelFromUrl(value);
 	const id = crypto.randomUUID().slice(0, 8);
 
-	app.downloads.push({ id, label, phase: 'queued', progress: 0, verdict: null });
+	app.downloads.push({
+		id,
+		label,
+		phase: 'queued',
+		progress: 0,
+		verdict: null,
+		route,
+		source: isMagnet ? 'torrent' : 'https'
+	});
+	if (route === 'vpn') addBanner('vpn_route');
 	void runDownload(id);
 	return { ok: true, error: null };
+}
+
+function labelFromUrl(raw: string): string {
+	const parsed = new URL(raw);
+	return decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() ?? 'download.bin');
+}
+
+function magnetLabel(raw: string): string {
+	const match = /[?&]dn=([^&]+)/i.exec(raw);
+	if (!match) return 'Torrent-Image';
+	try {
+		return decodeURIComponent(match[1].replace(/\+/g, ' '));
+	} catch {
+		return 'Torrent-Image';
+	}
+}
+
+/** Mirrors the contract's magnet rule: only `xt=urn:btih:` with 40 hex or 32 base32. */
+export function validateMagnet(raw: string): string | null {
+	if (!raw.toLowerCase().startsWith('magnet:?')) return 'Das ist kein Magnet-Link.';
+	const hash = /(?:^|&)xt=urn:btih:([^&]+)/i.exec(raw)?.[1] ?? '';
+	const hex = /^[0-9a-f]{40}$/i.test(hash);
+	const base32 = /^[a-z2-7]{32}$/i.test(hash);
+	return hex || base32 ? null : 'Der Info-Hash fehlt oder ist ungültig.';
 }
 
 async function runDownload(id: string) {
@@ -190,14 +242,21 @@ async function runDownload(id: string) {
 	if (!finished) return;
 	finished.phase = 'done';
 	finished.verdict = 'clean' as ScanVerdict;
+
+	const stillOnVpn = app.downloads.some(
+		(item) => item.route === 'vpn' && item.phase !== 'done' && item.phase !== 'error'
+	);
+	if (!stillOnVpn) removeBanner('vpn_route');
 }
 
 export function removeDownload(id: string) {
 	app.downloads = app.downloads.filter((item) => item.id !== id);
+	if (!app.downloads.some((item) => item.route === 'vpn')) removeBanner('vpn_route');
 }
 
 export function clearDownloads() {
 	app.downloads = [];
+	removeBanner('vpn_route');
 }
 
 export async function enable() {

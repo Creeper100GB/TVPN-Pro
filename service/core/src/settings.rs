@@ -33,6 +33,14 @@ pub enum NetMode {
     System,
 }
 
+/// How torrents may be routed. `VpnOnly` never touches Tor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TorrentMode {
+    Blocked,
+    VpnOnly,
+}
+
 /// Complete settings, as returned by `get_settings`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -42,7 +50,7 @@ pub struct Settings {
     pub tor_bridges: bool,
     pub block_fallback: BlockFallback,
     pub mac_mode: MacMode,
-    pub torrent_block: bool,
+    pub torrent_mode: TorrentMode,
     pub net_mode: NetMode,
     pub clipboard_watch: bool,
     pub scanner_hash_lookup: bool,
@@ -57,7 +65,7 @@ impl Default for Settings {
             tor_bridges: false,
             block_fallback: BlockFallback::Auto,
             mac_mode: MacMode::Random,
-            torrent_block: true,
+            torrent_mode: TorrentMode::Blocked,
             net_mode: NetMode::Focus,
             clipboard_watch: false,
             scanner_hash_lookup: false,
@@ -75,7 +83,7 @@ pub struct SettingsPatch {
     pub tor_bridges: Option<bool>,
     pub block_fallback: Option<BlockFallback>,
     pub mac_mode: Option<MacMode>,
-    pub torrent_block: Option<bool>,
+    pub torrent_mode: Option<TorrentMode>,
     pub net_mode: Option<NetMode>,
     pub clipboard_watch: Option<bool>,
     pub scanner_hash_lookup: Option<bool>,
@@ -144,8 +152,8 @@ impl Settings {
         if let Some(value) = patch.mac_mode {
             merged.mac_mode = value;
         }
-        if let Some(value) = patch.torrent_block {
-            merged.torrent_block = value;
+        if let Some(value) = patch.torrent_mode {
+            merged.torrent_mode = value;
         }
         if let Some(value) = patch.net_mode {
             merged.net_mode = value;
@@ -201,7 +209,7 @@ mod tests {
         assert!(!settings.tor_bridges);
         assert_eq!(settings.block_fallback, BlockFallback::Auto);
         assert_eq!(settings.mac_mode, MacMode::Random);
-        assert!(settings.torrent_block);
+        assert_eq!(settings.torrent_mode, TorrentMode::Blocked);
         assert_eq!(settings.net_mode, NetMode::Focus);
         assert_eq!(settings.portal_timeout_sec, 180);
         settings.validate().expect("defaults must validate");
@@ -223,7 +231,7 @@ mod tests {
         let patch: SettingsPatch = serde_json::from_value(json!({ "vpn_country": "NL" })).unwrap();
         settings = settings.apply(&patch).unwrap();
         assert_eq!(settings.vpn_country, "NL");
-        assert!(settings.torrent_block);
+        assert_eq!(settings.torrent_mode, TorrentMode::Blocked);
     }
 
     #[test]
@@ -256,6 +264,15 @@ mod tests {
     }
 
     #[test]
+    fn torrent_mode_accepts_vpn_only() {
+        let settings = Settings::default();
+        let patch: SettingsPatch =
+            serde_json::from_value(json!({ "torrent_mode": "vpn_only" })).unwrap();
+        let merged = settings.apply(&patch).unwrap();
+        assert_eq!(merged.torrent_mode, TorrentMode::VpnOnly);
+    }
+
+    #[test]
     fn timeout_bounds_are_inclusive() {
         for (value, ok) in [
             (60, true),
@@ -279,6 +296,7 @@ mod tests {
         assert_eq!(value["block_fallback"], "auto");
         assert_eq!(value["mac_mode"], "random");
         assert_eq!(value["net_mode"], "focus");
+        assert_eq!(value["torrent_mode"], "blocked");
         assert!(value.get("portal_timeout_sec").is_some());
         let back: Settings = serde_json::from_value(value).unwrap();
         assert_eq!(back, settings);

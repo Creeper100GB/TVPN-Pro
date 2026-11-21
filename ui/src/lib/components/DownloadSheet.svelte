@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { Download, Trash2, X } from 'lucide-svelte';
 	import { addDownload, app, clearDownloads, removeDownload } from '../mock.svelte';
-	import type { DownloadPhase, ScanVerdict } from '../types';
+	import type { DownloadPhase, DownloadRoute, ScanVerdict } from '../types';
+	import Segmented from './Segmented.svelte';
 	import Sheet from './Sheet.svelte';
 
 	let url = $state('');
+	let route = $state<DownloadRoute>('tor');
 	let error = $state<string | null>(null);
+
+	const routeOptions = [
+		{ value: 'tor' as DownloadRoute, label: 'Über Tor' },
+		{ value: 'vpn' as DownloadRoute, label: 'Über VPN' }
+	];
 
 	const verdictLabel: Record<ScanVerdict, string> = {
 		clean: 'Sauber',
@@ -23,7 +30,7 @@
 	};
 
 	function submit() {
-		const result = addDownload(url.trim());
+		const result = addDownload(url.trim(), route);
 		if (!result.ok) {
 			error = result.error;
 			return;
@@ -36,8 +43,21 @@
 <Sheet
 	bind:open={app.downloadsOpen}
 	title="Downloads"
-	subtitle="Links laufen über Tor. Erst der Scan entscheidet, wohin die Datei kommt."
+	subtitle="Über Tor läuft alles durch den Tunnel. Über VPN nur große Images, ohne Tor-Schutz."
 >
+	<div class="route-row">
+		<Segmented
+			label="Route"
+			options={routeOptions}
+			value={route}
+			onchange={(value) => (route = value)}
+			size="sm"
+		/>
+		{#if route === 'vpn'}
+			<span class="route-warning">Peers sehen deine VPN-IP. Kein Tor-Schutz.</span>
+		{/if}
+	</div>
+
 	<form
 		class="add"
 		onsubmit={(event) => {
@@ -47,8 +67,8 @@
 	>
 		<input
 			bind:value={url}
-			type="url"
-			placeholder="https://…"
+			type="text"
+			placeholder={route === 'vpn' ? 'https://… oder magnet:?xt=urn:btih:…' : 'https://…'}
 			aria-label="Download-URL"
 			autocomplete="off"
 			spellcheck="false"
@@ -71,6 +91,9 @@
 				<li data-testid="download-item">
 					<div class="row">
 						<span class="name" title={item.label}>{item.label}</span>
+						<span class="route" data-route={item.route}>
+							{item.route === 'vpn' ? 'VPN' : 'Tor'}
+						</span>
 						{#if item.verdict}
 							<span class="verdict" data-verdict={item.verdict}>{verdictLabel[item.verdict]}</span>
 						{:else}
@@ -114,10 +137,23 @@
 </Sheet>
 
 <style>
+	.route-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+		margin: 8px 0 10px;
+	}
+
+	.route-warning {
+		font-size: 11.5px;
+		color: var(--warn);
+	}
+
 	.add {
 		display: flex;
 		gap: 8px;
-		margin: 6px 0 4px;
+		margin: 0 0 4px;
 	}
 
 	input {
@@ -190,7 +226,7 @@
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 	}
 
 	.name {
@@ -200,6 +236,22 @@
 		white-space: nowrap;
 		font-size: 13px;
 		font-weight: 540;
+	}
+
+	.route {
+		flex: none;
+		padding: 2px 7px;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		font-size: 10px;
+		font-weight: 620;
+		letter-spacing: 0.03em;
+		color: var(--muted);
+	}
+
+	.route[data-route='vpn'] {
+		color: var(--warn);
+		border-color: color-mix(in oklab, var(--warn) 35%, transparent);
 	}
 
 	.verdict {

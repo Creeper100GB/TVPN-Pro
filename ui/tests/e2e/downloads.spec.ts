@@ -86,6 +86,55 @@ test('UI: enable, add a download, verdict, disable, clear the list', async ({ pa
 	await expect(downloadsAgain.getByText('Keine Downloads in dieser Sitzung.')).toBeVisible();
 });
 
+test('bulk route: enable VPN torrents, add a magnet, clear the list', async ({ page }) => {
+	await page.goto('/');
+
+	await page.getByRole('button', { name: 'Schutz einschalten' }).click();
+	await expect(page.getByRole('heading', { name: 'Geschützt' })).toBeVisible({ timeout: 15_000 });
+
+	await page.getByRole('button', { name: 'Einstellungen öffnen' }).click();
+	const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+	await settings.getByRole('button', { name: 'Nur VPN' }).click();
+	await settings.getByRole('button', { name: 'Fertig' }).click();
+
+	await page.getByRole('button', { name: 'Downloads öffnen' }).click();
+	const downloads = page.getByRole('dialog', { name: 'Downloads' });
+	await downloads.getByRole('button', { name: 'Über VPN' }).click();
+	await expect(downloads.getByText('Peers sehen deine VPN-IP. Kein Tor-Schutz.')).toBeVisible();
+
+	await downloads
+		.getByLabel('Download-URL')
+		.fill('magnet:?dn=debian.iso&xt=urn:btih:0123456789abcdef0123456789abcdef01234567');
+	await downloads.getByRole('button', { name: 'Hinzufügen' }).click();
+
+	const item = downloads.getByTestId('download-item').first();
+	await expect(item).toContainText('debian.iso');
+	await expect(item).toContainText('VPN');
+	await expect(item).toContainText('Sauber', { timeout: 15_000 });
+
+	await downloads.getByRole('button', { name: 'Liste leeren' }).click();
+	await expect(downloads.getByText('Keine Downloads in dieser Sitzung.')).toBeVisible();
+});
+
+test('bulk route is refused while torrents are blocked', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('button', { name: 'Schutz einschalten' }).click();
+	await expect(page.getByRole('heading', { name: 'Geschützt' })).toBeVisible({ timeout: 15_000 });
+
+	await page.getByRole('button', { name: 'Downloads öffnen' }).click();
+	const downloads = page.getByRole('dialog', { name: 'Downloads' });
+	await downloads.getByRole('button', { name: 'Über VPN' }).click();
+	await downloads
+		.getByLabel('Download-URL')
+		.fill('magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567');
+	await downloads.getByRole('button', { name: 'Hinzufügen' }).click();
+
+	await expect(
+		downloads.getByText('Die VPN-Route ist ausgeschaltet. Aktiviere sie in den Einstellungen.')
+	).toBeVisible();
+	await expect(downloads.getByTestId('download-item')).toHaveCount(0);
+});
+
 test('files: download to disk, verify the hash, remove everything', async ({ request }) => {
 	const response = await request.get(fileUrl);
 	expect(response.ok()).toBeTruthy();

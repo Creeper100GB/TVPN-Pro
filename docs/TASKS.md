@@ -62,6 +62,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 | P4-06 | scanner | MOTW und Quarantäne | Zone.Identifier gesetzt, Quarantäne unlesbar | offen |
 | P4-07 | ui-shell | Downloads und Scan-Ergebnisse | Alle Urteile darstellbar | offen |
 | P4-08 | qa-security | Tests Phase 4 | Matrix-Punkte grün | offen |
+| P4-09 | launcher, net-core | VPN-Bulk-Route: Torrent-Client nur über VPN-Adapter, DHT/LPD/PEX/UPnP aus, Firewall-Permit, Banner `vpn_route` | Torrent lädt nur über VPN, Peers sehen nie die echte IP | offen |
 
 ## Phase 5: Wächter, Fallback, Härtung (Gate G5)
 | ID | Rolle | Aufgabe | Abnahme | Status |

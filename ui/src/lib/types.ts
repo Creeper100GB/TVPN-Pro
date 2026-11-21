@@ -19,12 +19,17 @@ export type BannerKind =
 	| 'degraded'
 	| 'failclosed'
 	| 'mac_unsupported'
-	| 'hostname_unchanged';
+	| 'hostname_unchanged'
+	| 'vpn_route';
 
 export type WatchdogLevel = 'ok' | 'warn' | 'critical';
 
 export type BlockFallback = 'off' | 'suggest' | 'auto';
 export type MacMode = 'random' | 'original';
+export type TorrentMode = 'blocked' | 'vpn_only';
+
+export type DownloadRoute = 'tor' | 'vpn';
+export type DownloadSource = 'https' | 'torrent';
 
 export type DownloadPhase = 'queued' | 'active' | 'paused' | 'done' | 'error';
 export type ScanVerdict = 'clean' | 'warned' | 'quarantined' | 'failed';
@@ -35,6 +40,8 @@ export interface DownloadItem {
 	phase: DownloadPhase;
 	progress: number;
 	verdict: ScanVerdict | null;
+	route: DownloadRoute;
+	source: DownloadSource;
 }
 
 export interface Settings {
@@ -43,7 +50,7 @@ export interface Settings {
 	torBridges: boolean;
 	blockFallback: BlockFallback;
 	macMode: MacMode;
-	torrentBlock: boolean;
+	torrentMode: TorrentMode;
 	clipboardWatch: boolean;
 	scannerHashLookup: boolean;
 	portalTimeoutSec: number;

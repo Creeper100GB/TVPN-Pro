@@ -3,7 +3,7 @@
 	import { COUNTRIES } from '../countries';
 	import { app, panic, updateSetting } from '../mock.svelte';
 	import { setTheme, theme } from '../theme.svelte';
-	import type { BlockFallback, MacMode } from '../types';
+	import type { BlockFallback, MacMode, TorrentMode } from '../types';
 	import Segmented from './Segmented.svelte';
 	import Sheet from './Sheet.svelte';
 	import Toggle from './Toggle.svelte';
@@ -11,6 +11,11 @@
 	const macOptions = [
 		{ value: 'random' as MacMode, label: 'Neu würfeln' },
 		{ value: 'original' as MacMode, label: 'Original' }
+	];
+
+	const torrentOptions = [
+		{ value: 'blocked' as TorrentMode, label: 'Blockiert' },
+		{ value: 'vpn_only' as TorrentMode, label: 'Nur VPN' }
 	];
 
 	const fallbackOptions = [
@@ -155,13 +160,16 @@
 
 		<div class="item">
 			<div class="text">
-				<p class="title">Torrent-Block</p>
-				<p class="desc">Der Downloader spricht kein BitTorrent, kein DHT, kein LPD.</p>
+				<p class="title">Torrents</p>
+				<p class="desc">
+					Nur über VPN, nie über Tor. Peers sehen dann deine VPN-IP, der Anbieter den Traffic.
+				</p>
 			</div>
-			<Toggle
-				checked={app.settings.torrentBlock}
-				label="Torrent blockieren"
-				onchange={(v) => updateSetting('torrentBlock', v)}
+			<Segmented
+				label="Torrent-Modus"
+				options={torrentOptions}
+				value={app.settings.torrentMode}
+				onchange={(v) => updateSetting('torrentMode', v)}
 			/>
 		</div>
 

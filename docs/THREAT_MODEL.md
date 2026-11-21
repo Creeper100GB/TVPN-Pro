@@ -55,6 +55,7 @@ Ein Werkzeug, das auf einem Windows-Rechner die Spuren im Netz reduziert: ausgeh
 | VPN-Anbieter | echte IP, Tor-Nutzung | Konto ohne Personenbezug, anonyme Zahlung | „No-log“ ist ein Versprechen, kein Beweis |
 | Tor-Relays | Entry: VPN-IP; Exit: Klartext | VPN vor Tor, HTTPS-only | Korrelation bei beobachteten Enden |
 | Andere Software, Downloads | alles, was Apps melden | Firewall-Allowlist, Scanner | 0-Days, IP-verratende Dokumente nach dem Ausschalten |
+| Torrent-Peers (nur VPN-Bulk-Route) | IP, Port, Client-Kennung, übertragene Blöcke | ausschließlich VPN-Adresse, DHT/LPD/PEX/UPnP aus, keine eingehenden Verbindungen | Peer sieht die VPN-IP und das Image, der VPN-Anbieter sieht den Traffic |
 | Zugriff aufs Gerät | lokale Spuren | Aufräumen, Pflicht-Hinweis Plattenverschlüsselung | Beschlagnahme, Forensik, Boot-Spuren |
 
 ### 5.1 Website und Tracker
@@ -84,6 +85,16 @@ Die Firewall lässt nur Allowlist-Apps zu Tor-Ports auf Loopback. Alles andere b
 ### 5.7 Zugriff auf das Gerät
 
 Wer das Gerät in die Hand bekommt, findet Spuren: Browser-Profile, Download-Ordner, Windows-Ereignisprotokolle, Prefetch, Volume Shadow Copies. Die App räumt definierte Dinge auf (Browser-Session, temporäre Dateien, Logs im Release). Sie ist kein Forensik-Werkzeug und keine Festplattenverschlüsselung. Plattenverschlüsselung ist Pflicht, nicht Option.
+
+### 5.8 Torrents und die VPN-Bulk-Route
+
+Torrents laufen ausschließlich über den VPN-Adapter (`torrent_mode = vpn_only`, Standard `blocked`). Über Tor wäre es Netzmissbrauch und ein Leak-Risiko: DHT, Local Peer Discovery, Peer Exchange und UPnP würden versuchen, an Tor vorbei zu gehen. Auf der VPN-Route sind sie abgeschaltet, eingehende Verbindungen ebenfalls.
+
+Was das bedeutet, ehrlich:
+- Peers sehen die VPN-IP, nicht die echte. Sie sehen auch, welches Image geladen wird.
+- Der VPN-Anbieter sieht den Torrent-Verkehr und kann ihn mit deinem Konto verknüpfen, wenn du kein anonymes Konto nutzt.
+- Der ISP sieht nur VPN-Traffic, aber Menge und Zeit.
+- Es gibt **keinen** Tor-Schutz auf dieser Route. Das ist VPN-Privatsphäre, keine Anonymität. Der Banner `vpn_route` sagt das, solange die Route aktiv ist.
 
 ## 6. Angriffe auf die App selbst
 
