@@ -26,7 +26,7 @@ Das Skript sucht den neuesten Release, lädt den Installer, prüft die SHA-256-P
 <details>
 <summary><strong>Manuell installieren: drei Schritte</strong></summary>
 
-1. Öffne die [Release-Seite](https://github.com/Creeper100GB/TVPN-Pro/releases) und lade die Datei `TVPN Pro_..._x64-setup.exe`.
+1. Öffne die [Release-Seite](https://github.com/Creeper100GB/TVPN-Pro/releases) und lade die Datei `TVPN.Pro_..._x64-setup.exe`.
 2. Starte die Datei. Windows SmartScreen meldet einen unbekannten Herausgeber: **Weitere Informationen** → **Trotzdem ausführen**.
 3. Starte **TVPN Pro** aus dem Startmenü.
 

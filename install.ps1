@@ -74,14 +74,20 @@ try {
         $sumFile = Join-Path $temp 'SHA256SUMS.txt'
         Invoke-WebRequest -Uri $release.Sums.browser_download_url -OutFile $sumFile -UseBasicParsing
 
+        # GitHub replaces spaces in uploaded asset names with dots. Compare the
+        # names without spaces and dots so the local and uploaded names match.
+        $wanted = $release.Asset.name -replace '[ .]', ''
         $line = Get-Content -LiteralPath $sumFile |
-            Where-Object { $_.Trim().EndsWith($release.Asset.name, [StringComparison]::OrdinalIgnoreCase) } |
+            Where-Object {
+                $parts = $_.Trim() -split '\s+', 2
+                $parts.Count -eq 2 -and (($parts[1] -replace '[ .]', '') -eq $wanted)
+            } |
             Select-Object -First 1
         if (-not $line) {
             throw "Keine SHA-256-Zeile zu $($release.Asset.name) gefunden."
         }
 
-        $expected = ($line.Trim() -split '\s+')[0].ToLowerInvariant()
+        $expected = ($line.Trim() -split '\s+', 2)[0].ToLowerInvariant()
         $actual = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($actual -ne $expected) {
             throw "SHA-256 stimmt nicht. Erwartet: $expected. Erhalten: $actual."

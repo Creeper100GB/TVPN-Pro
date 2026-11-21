@@ -57,7 +57,14 @@ curl -fsSL "$download" -o "$file"
 if [ -n "$sums_url" ]; then
     echo "==> Kontrolliere SHA-256"
     curl -fsSL "$sums_url" -o "$tmp/SHA256SUMS.txt"
-    expected="$(grep -F "  ${name}" "$tmp/SHA256SUMS.txt" | head -n 1 | cut -c1-64)"
+    normalized="$(printf '%s' "$name" | tr -d ' .')"
+    expected="$(awk -v want="$normalized" '{
+        hash=$1;
+        line=$0;
+        sub(/^[^ ]+[ ]+/, "", line);
+        gsub(/[ .]/, "", line);
+        if (line == want) { print hash; exit }
+    }' "$tmp/SHA256SUMS.txt")"
     if [ -z "$expected" ]; then
         echo "Keine SHA-256-Zeile zu ${name} gefunden." >&2
         exit 1
