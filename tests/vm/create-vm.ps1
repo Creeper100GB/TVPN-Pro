@@ -80,18 +80,9 @@ try {
         throw 'install.wim or install.esd not found on the ISO.'
     }
 
-    Write-Host "==> Select Windows 11 Pro"
-    $images = Get-WindowsImage -ImagePath $wim
-    $image = $images | Where-Object { $_.ImageName -eq 'Windows 11 Pro' } | Select-Object -First 1
-    if (-not $image) {
-        $image = $images | Where-Object {
-            $_.ImageName -match 'Windows 11 Pro' -and $_.ImageName -notmatch ' N$|Education|Workstation'
-        } | Select-Object -First 1
-    }
-    if (-not $image) {
-        throw "Windows 11 Pro not found. Editions: $($images.ImageName -join ', ')"
-    }
-    Write-Host "    index $($image.ImageIndex): $($image.ImageName)"
+    # The setup inside the guest selects the edition by name. The host DISM
+    # may be older than the ISO and must not be used to inspect the WIM.
+    Write-Host "==> Edition: Windows 11 Pro (selected by Setup)"
 
     # Release the host mount before Hyper-V opens the ISO as a DVD.
     Dismount-DiskImage -ImagePath $IsoPath | Out-Null
@@ -99,7 +90,7 @@ try {
 
     Write-Host "==> Build answer VHD"
     $template = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'autounattend.xml') -Raw
-    $xml = $template.Replace('__IMAGE_INDEX__', [string]$image.ImageIndex).Replace('__PASSWORD__', $AdminPassword)
+    $xml = $template.Replace('__PASSWORD__', $AdminPassword)
 
     if (Test-Path -LiteralPath $answerVhd) {
         Remove-Item -LiteralPath $answerVhd -Force

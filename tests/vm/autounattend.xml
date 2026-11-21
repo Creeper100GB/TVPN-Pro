@@ -56,8 +56,8 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Key>/IMAGE/INDEX</Key>
-              <Value>__IMAGE_INDEX__</Value>
+              <Key>/IMAGE/NAME</Key>
+              <Value>Windows 11 Pro</Value>
             </MetaData>
           </InstallFrom>
           <InstallTo>
