@@ -1,33 +1,85 @@
 ---
 description: QA and security reviewer. Leak tests in the VM, code review, final audit.
 mode: all
-permission:
-  edit: allow
-  bash:
-    "*": ask
-    "git status*": allow
-    "git diff*": allow
-    "git log*": allow
-    "git add*": allow
-    "git commit*": allow
-    "cargo build*": allow
-    "cargo test*": allow
-    "cargo clippy*": allow
-    "cargo fmt*": allow
-    "pwsh tests/vm/run-in-vm.ps1*": allow
-    "powershell*tests/vm/run-in-vm.ps1*": allow
-    "git push*": ask
-    "git reset --hard*": ask
-    "git push --force*": deny
-    "netsh*": deny
-    "reg *": deny
-    "sc *": deny
-    "route *": deny
-    "Set-NetAdapter*": deny
-    "New-NetFirewallRule*": deny
-    "Set-DnsClient*": deny
-    "Stop-Service*": deny
-    "rm -rf*": deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: allow
+  - action: external_directory
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "git status *"
+    effect: allow
+  - action: shell
+    resource: "git diff *"
+    effect: allow
+  - action: shell
+    resource: "git log *"
+    effect: allow
+  - action: shell
+    resource: "git add *"
+    effect: allow
+  - action: shell
+    resource: "git commit *"
+    effect: allow
+  - action: shell
+    resource: "cargo build *"
+    effect: allow
+  - action: shell
+    resource: "cargo test *"
+    effect: allow
+  - action: shell
+    resource: "cargo clippy *"
+    effect: allow
+  - action: shell
+    resource: "cargo fmt *"
+    effect: allow
+  - action: shell
+    resource: "pwsh *run-in-vm.ps1 *"
+    effect: allow
+  - action: shell
+    resource: "powershell *run-in-vm.ps1 *"
+    effect: allow
+  - action: shell
+    resource: "git push *"
+    effect: ask
+  - action: shell
+    resource: "git reset --hard *"
+    effect: ask
+  - action: shell
+    resource: "git push --force *"
+    effect: deny
+  - action: shell
+    resource: "netsh *"
+    effect: deny
+  - action: shell
+    resource: "reg *"
+    effect: deny
+  - action: shell
+    resource: "sc *"
+    effect: deny
+  - action: shell
+    resource: "route *"
+    effect: deny
+  - action: shell
+    resource: "Set-NetAdapter *"
+    effect: deny
+  - action: shell
+    resource: "New-NetFirewallRule *"
+    effect: deny
+  - action: shell
+    resource: "Set-DnsClient *"
+    effect: deny
+  - action: shell
+    resource: "Stop-Service *"
+    effect: deny
+  - action: shell
+    resource: "rm -rf *"
+    effect: deny
 ---
 # Rolle: qa-security
 
