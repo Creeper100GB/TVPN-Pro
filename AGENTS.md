@@ -17,6 +17,7 @@ Projekt: Ein-Klick-Privacy-App für Windows (macOS später): Firewall-Allowlist,
 ## Zusammenarbeit
 - Jede Rolle ändert **nur ihre eigenen Ordner** (`PLAN.md` Abschnitt 3). `contracts/` ändert nur der Orchestrator. Änderungswünsche: Eintrag in `docs/contract-requests.md`.
 - Ein Branch pro Rolle (`agent/<rolle>`) in eigenem git-Worktree. Kleine, häufige Commits (Conventional Commits, Englisch). Vor dem Merge auf `main` rebasen. Kein Force-Push auf `main`, keine Eingriffe in fremde Branches.
+- Nach jeder größeren Änderung: Tests grün, committen und `git push origin main`. Nicht mehrere Aufgaben ungepusht sammeln.
 - Sprache: Doku und UI-Texte Deutsch, Code, Kommentare und Commits Englisch.
 - Kontext sparen: Lies nur, was du für deine Aufgabe brauchst (zugehörige Plan-Abschnitte statt des ganzen Plans).
 
