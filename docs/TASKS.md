@@ -17,6 +17,8 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 
 **Vorgezogen:** P2-07 (UI-Gerüst gegen IPC-Mock) ist auf Wunsch des Menschen bereits gebaut: `ui/`, alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Hell/Dunkel, Playwright-Designprüfung. Details: `docs/reports/phase-0.md`, Abschnitt 3.
 
+**Stand P2-01/P2-02 (läuft):** Der host-sichere Kern in `service/core` ist fertig und getestet (45 Unit-Tests): Zustandsautomat nach Vertrag, Settings-Whitelist mit Alles-oder-nichts-Patch, URL-Regeln, IPC-Envelope mit Größen-/ID-/Versionsprüfung, Redaktions-Scanner. **Offen:** Named-Pipe-Server, `tracing`-Anbindung mit Redaktions-Layer, Hauptprogramm `tvpnd`. Übergabe: `docs/handoffs/P2-01-core.md`.
+
 ## Phase 1: Spikes (Gate G1), Details in `docs/SPIKES.md`
 | ID | Rolle | Aufgabe | Abnahme | Status |
 |---|---|---|---|---|
@@ -30,8 +32,8 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 ## Phase 2: Net-Core MVP (Gate G2)
 | ID | Rolle | Aufgabe | Abnahme | Status |
 |---|---|---|---|---|
-| P2-01 | orchestrator | Zustandsautomat und IPC-Server | Zustandsübergänge laut Vertrag, Unit-Tests | offen |
-| P2-02 | orchestrator | Logging mit Redaktions-Gate | Gate-Test in CI grün | offen |
+| P2-01 | orchestrator | Zustandsautomat und IPC-Server | Zustandsübergänge laut Vertrag, Unit-Tests | läuft |
+| P2-02 | orchestrator | Logging mit Redaktions-Gate | Gate-Test in CI grün | läuft |
 | P2-03 | net-core | WFP-Layer (arm, permit_app, verify, disarm) | Allowlist-Tests in der VM grün | offen |
 | P2-04 | net-core | Tor-Controller | Bootstrap und Circuit-Status zuverlässig | offen |
 | P2-05 | net-core | VPN-Controller (Mullvad) | Verbinden, Land, Status, Fehlerfälle | offen |

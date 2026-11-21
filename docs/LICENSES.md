@@ -37,6 +37,8 @@ Nicht mitgeliefert, nur genutzt: Windows Defender (`MpCmdRun.exe`) ist Teil von 
 | Inter (Fontsource) | Schrift, lokal gebündelt | OFL-1.1 | ungeprüft |
 | TypeScript | Build | Apache-2.0 | ungeprüft |
 | Playwright | Visuelle Prüfung, nur Dev-Abhängigkeit | Apache-2.0 | ungeprüft |
+| serde, serde_json (direkt) | IPC-Serialisierung | MIT oder Apache-2.0 | ungeprüft |
+| Transitive Crates laut `Cargo.lock` (itoa, memchr, zmij, proc-macro2, quote, syn, unicode-ident, serde_core, serde_derive) | Build und Laufzeit | MIT oder Apache-2.0 (pro Crate) | ungeprüft, `cargo deny` folgt in Phase 2 |
 | Windows-/`windows`-Crate | Win32-APIs | MIT oder Apache-2.0 | ungeprüft |
 
 `cargo deny` und `npm audit` werden in Phase 2 Teil der CI; die vollständige Liste entsteht aus `Cargo.lock` und `package-lock.json` und wird hier nachgetragen.
