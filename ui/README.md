@@ -36,6 +36,8 @@ bun run e2e        # End-to-End-Tests (startet den Dev-Server selbst)
 
 Der UI-Teil läuft gegen den Mock (es gibt noch keinen Dienst). Der Datei-Teil ist echt, benutzt aber nur `127.0.0.1`. Details: `docs/reports/e2e-download.md`.
 
+Zusätzlich prüft die Suite die **VPN-Bulk-Route**: Magnet-Links werden nur akzeptiert, wenn `torrent_mode = vpn_only` gesetzt ist; bei `blocked` bleibt die Liste leer. Die Route trägt einen eigenen Chip und eine Warnung („Peers sehen deine VPN-IP").
+
 ## Aufbau
 
 - `src/routes/+page.svelte`: Fenster, Hero, Seitenleiste, Demo-Leiste.

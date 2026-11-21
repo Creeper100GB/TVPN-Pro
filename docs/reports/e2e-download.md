@@ -10,6 +10,8 @@ Stand: 21. November 2026. Test: `ui/tests/e2e/downloads.spec.ts`. Ausführen mit
 | Download-Liste, URL-Prüfung, Fortschritt, Urteil | Mock | HTTPS-Pflicht, Port 443, keine IP-Literale, keine lokalen Namen; Eintrag erreicht „Sauber" |
 | Sitzungs-Zusammenfassung | Mock, aber aus der Download-Liste berechnet | Zähler „Sauber" ist 1, nicht hartkodiert |
 | Aufräumen in der App | Mock | „Liste leeren" hinterlässt den leeren Zustand |
+| VPN-Bulk-Route (Torrent) | Mock | `torrent_mode = vpn_only` nötig; Magnet-Link nur auf der VPN-Route; Route-Chip und Warnung sichtbar |
+| VPN-Route bei `blocked` | Mock | Hinzufügen wird mit `E_DOWNLOAD_ROUTE_FORBIDDEN` abgelehnt, Liste bleibt leer |
 | Datei-Download | **echt** | lokaler HTTP-Server liefert 256 KiB, Playwright lädt sie herunter, SHA-256 wird geprüft |
 | Aufräumen auf der Platte | **echt** | Download-Ordner und `.tmp` werden gelöscht, `existsSync` bestätigt das |
 
@@ -25,10 +27,12 @@ Der Datei-Teil benutzt bewusst einen lokalen Server auf `127.0.0.1` mit zufälli
 ## Ergebnis des letzten Laufs
 
 ```
-Running 2 tests using 1 worker
-✓ UI: enable, add a download, verdict, disable, clear the list (12.3s)
-✓ files: download to disk, verify the hash, remove everything (76ms)
-2 passed (13.4s)
+Running 4 tests using 1 worker
+✓ UI: enable, add a download, verdict, disable, clear the list (11.9s)
+✓ bulk route: enable VPN torrents, add a magnet, clear the list (9.8s)
+✓ bulk route is refused while torrents are blocked (6.5s)
+✓ files: download to disk, verify the hash, remove everything (44ms)
+4 passed (33.4s)
 ```
 
 `ui/tests/e2e/.tmp` existiert danach nicht mehr.
