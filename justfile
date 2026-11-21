@@ -16,9 +16,13 @@ fmt-check:
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
 
-# Unit tests
+# Unit tests (MSVC environment is loaded by the wrapper)
 test:
-    cargo test --workspace
+    powershell -NoProfile -ExecutionPolicy Bypass -File tools/with-msvc.ps1 cargo test --workspace
+
+# Debug build of the service crates
+build:
+    powershell -NoProfile -ExecutionPolicy Bypass -File tools/with-msvc.ps1 cargo build --workspace
 
 # Parse-check every PowerShell script
 pscheck:

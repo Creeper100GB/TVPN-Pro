@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = [
+    "service/core",
+    "service/net",
+    "service/privacy",
+    "service/launcher",
+    "service/scanner",
+    "service/watchdog",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+# Single dependency policy: every crate and version must be listed in
+# docs/LICENSES.md before it is merged (AGENTS.md).
