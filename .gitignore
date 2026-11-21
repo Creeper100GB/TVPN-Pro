@@ -1,0 +1,18 @@
+# build output
+target/
+node_modules/
+dist/
+*.exe
+*.msi
+*.dmg
+# local secrets and logs
+.env
+*.pem
+*.key
+*.log
+logs/
+# editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
