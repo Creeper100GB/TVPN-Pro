@@ -74,6 +74,20 @@ Unten in den Einstellungen sitzt der kleine Knopf **Tester-Infos kopieren**. Er 
 
 Es gibt keine Demo-Zustände und keine Beispiel-Sitzung mehr. Die Oberfläche zeigt nur den normalen Ablauf.
 
+## macOS
+
+Auf einem Mac mit Xcode Command Line Tools erzeugt
+
+```bash
+cd ui
+bun install --frozen-lockfile
+bun run tauri build --config tauri.macos.conf.json
+```
+
+eine ad-hoc signierte, nicht notarisierte `.app` unter `src-tauri/target/release/bundle/macos/`. Die CI baut sie auf `macos-latest` und legt sie als Artefakt ab.
+
+Für die Weitergabe an andere Macs braucht es ein Apple-Developer-Konto, eine Developer-ID-Signatur und eine Notarisierung. Ohne das blockiert Gatekeeper die App. Die Schutzfunktionen (Firewall, VPN, MAC) sind auf macOS nicht implementiert; das ist Phase 7.
+
 ## Noch nicht enthalten
 
 - Tauri-Fenster und IPC (folgt mit dem Dienst, Phase 2).

@@ -1,0 +1,50 @@
+name: macOS build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ui/**'
+      - '.github/workflows/macos.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+
+      - name: Install UI dependencies
+        working-directory: ui
+        run: bun install --frozen-lockfile
+
+      - name: Build unsigned app
+        working-directory: ui
+        run: bun run tauri build --config tauri.macos.conf.json
+
+      - name: Package app
+        working-directory: ui/src-tauri/target/release/bundle/macos
+        run: |
+          for app in *.app; do
+            ditto -c -k --sequesterRsrc --keepParent "$app" "TVPN-Pro-macos-unsigned.zip"
+          done
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvpn-pro-macos-unsigned
+          path: ui/src-tauri/target/release/bundle/macos/*.zip
+          if-no-files-found: error
