@@ -50,6 +50,14 @@ fn main() {
         return;
     }
 
+    if std::env::args().any(|argument| argument == "--service") {
+        if let Err(error) = tvpnd::service::run() {
+            eprintln!("tvpnd: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     let token = tvpnd::pipe::generate_token();
     if let Err(error) = tvpnd::pipe::run(&token) {
         eprintln!("tvpnd: {error}");

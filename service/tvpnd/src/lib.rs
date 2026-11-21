@@ -19,6 +19,9 @@ pub const PROTOCOL_VERSION: u8 = 0;
 #[cfg(windows)]
 pub mod pipe;
 
+#[cfg(windows)]
+pub mod service;
+
 /// One service session. The caller owns the transport and the token.
 pub struct Service {
     state: State,

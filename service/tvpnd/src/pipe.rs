@@ -11,6 +11,7 @@ use std::ffi::OsStr;
 use std::io;
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
@@ -200,11 +201,19 @@ fn create_pipe(name: &str) -> io::Result<HANDLE> {
 
 /// Runs the pipe server until the process is stopped.
 pub fn run(token: &str) -> io::Result<()> {
+    run_with_stop(token, &AtomicBool::new(false))
+}
+
+/// Runs the pipe server until `stop` is set between two connections.
+pub fn run_with_stop(token: &str, stop: &AtomicBool) -> io::Result<()> {
     let path = write_token(token)?;
     println!("tvpnd: pipe {} token {}", pipe_name(), path.display());
 
     let mut service = Service::new(token);
     loop {
+        if stop.load(Ordering::SeqCst) {
+            break;
+        }
         let handle = create_pipe(&pipe_name())?;
         let connected = unsafe { ConnectNamedPipe(handle, None) };
         if let Err(error) = connected {
@@ -228,6 +237,7 @@ pub fn run(token: &str) -> io::Result<()> {
             }
         }
     }
+    Ok(())
 }
 
 fn serve_connection(handle: HANDLE, service: &mut Service) -> io::Result<()> {
