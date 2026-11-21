@@ -42,6 +42,7 @@
 		position: relative;
 		display: grid;
 		place-items: center;
+		flex: none;
 		width: 208px;
 		height: 208px;
 		padding: 0;
@@ -81,9 +82,9 @@
 		color: #fff;
 		background: radial-gradient(
 			120% 120% at 30% 18%,
-			color-mix(in oklab, var(--tone) 78%, white),
-			var(--tone) 52%,
-			color-mix(in oklab, var(--tone) 74%, black)
+			color-mix(in oklab, var(--tone) 88%, white),
+			var(--tone) 58%,
+			color-mix(in oklab, var(--tone) 78%, black)
 		);
 		box-shadow:
 			0 26px 60px -22px color-mix(in oklab, var(--tone) 65%, transparent),

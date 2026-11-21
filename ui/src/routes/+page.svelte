@@ -48,12 +48,8 @@
 		app.watchdog === 'ok' ? 'OK' : app.watchdog === 'warn' ? 'Warnung' : 'Kritisch'
 	);
 
-	const primaryBackground = $derived(
-		app.state === 'OFF'
-			? 'var(--accent)'
-			: app.state === 'FAILCLOSED'
-				? 'var(--danger)'
-				: 'color-mix(in oklab, var(--ink) 88%, transparent)'
+	const primaryKind = $derived(
+		app.state === 'OFF' ? 'start' : app.state === 'FAILCLOSED' ? 'recover' : 'stop'
 	);
 
 	function primary() {
@@ -81,17 +77,16 @@
 
 <div class="stage">
 	<div class="window">
-		<header class="titlebar">
-			<div class="brand">
+		<header class="titlebar" data-tauri-drag-region>
+			<div class="brand" data-tauri-drag-region>
 				<div class="logo"><ShieldCheck size={19} strokeWidth={2.1} /></div>
-				<div>
-					<h1>TVPN Pro</h1>
-					<p class="sub">Fokus-Modus · keine Telemetrie</p>
+				<div data-tauri-drag-region>
+					<h1 data-tauri-drag-region>TVPN Pro</h1>
+					<p class="sub" data-tauri-drag-region>Fokus-Modus · keine Telemetrie</p>
 				</div>
 			</div>
 
 			<div class="actions">
-				<span class="demo-chip" title="Es ist noch kein Dienst verbunden.">Demo</span>
 				<button
 					type="button"
 					class="icon-button"
@@ -125,8 +120,8 @@
 					<button
 						type="button"
 						class="primary"
+						data-kind={primaryKind}
 						disabled={primaryDisabled}
-						style="background: {primaryBackground}"
 						onclick={primary}
 					>
 						{meta.action}
@@ -208,66 +203,68 @@
 				<span class="dot" style="background: {TONE_VAR[tone]}" aria-hidden="true"></span>
 				{meta.label} · seit {startLabel}
 			</span>
-			<span class="status-right">Fokus-Modus · v0.0.0</span>
-		</footer>
-	</div>
-</div>
+			<span class="status-right">
+				<span class="mode">Fokus-Modus · v0.0.0</span>
 
-<div class="demo">
-	{#if demoOpen}
-		<div class="popover" role="dialog" aria-label="Demo-Zustände">
-			<p class="pop-title">Zustand ansehen</p>
-			<div class="pop-grid">
-				{#each STATE_ORDER as state (state)}
+				<div class="demo">
+					{#if demoOpen}
+						<div class="popover" role="dialog" aria-label="Demo-Zustände">
+							<p class="pop-title">Zustand ansehen</p>
+							<div class="pop-grid">
+								{#each STATE_ORDER as state (state)}
+									<button
+										type="button"
+										class="pop-state"
+										class:current={state === app.state}
+										onclick={() => jumpTo(state)}
+									>
+										{state}
+									</button>
+								{/each}
+							</div>
+							<label class="pop-toggle">
+								<input type="checkbox" bind:checked={app.demoPortal} />
+								Portal-Schritt simulieren
+							</label>
+							<button
+								type="button"
+								class="pop-state wide"
+								onclick={() => {
+									app.lastSummary = {
+										startedAt: Date.now() - 754000,
+										endedAt: Date.now(),
+										stateReached: 'READY',
+										clean: 3,
+										warned: 1,
+										quarantined: 1,
+										failed: 0,
+										failclosedCount: 1,
+										reasons: ['E_TOR_BOOTSTRAP_TIMEOUT']
+									};
+									app.summaryOpen = true;
+									demoOpen = false;
+								}}
+							>
+								Sitzungs-Zusammenfassung zeigen
+							</button>
+						</div>
+					{/if}
+
 					<button
 						type="button"
-						class="pop-state"
-						class:current={state === app.state}
-						onclick={() => jumpTo(state)}
+						class="fab"
+						aria-expanded={demoOpen}
+						aria-label="Demo-Zustände"
+						onclick={() => (demoOpen = !demoOpen)}
 					>
-						{state}
+						<FlaskConical size={14} />
+						Demo
+						<ChevronDown size={14} class="chev {demoOpen ? 'up' : ''}" />
 					</button>
-				{/each}
-			</div>
-			<label class="pop-toggle">
-				<input type="checkbox" bind:checked={app.demoPortal} />
-				Portal-Schritt simulieren
-			</label>
-			<button
-				type="button"
-				class="pop-state wide"
-				onclick={() => {
-					app.lastSummary = {
-						startedAt: Date.now() - 754000,
-						endedAt: Date.now(),
-						stateReached: 'READY',
-						clean: 3,
-						warned: 1,
-						quarantined: 1,
-						failed: 0,
-						failclosedCount: 1,
-						reasons: ['E_TOR_BOOTSTRAP_TIMEOUT']
-					};
-					app.summaryOpen = true;
-					demoOpen = false;
-				}}
-			>
-				Sitzungs-Zusammenfassung zeigen
-			</button>
-		</div>
-	{/if}
-
-	<button
-		type="button"
-		class="fab"
-		aria-expanded={demoOpen}
-		aria-label="Demo-Zustände"
-		onclick={() => (demoOpen = !demoOpen)}
-	>
-		<FlaskConical size={15} />
-		Demo
-		<ChevronDown size={14} class="chev {demoOpen ? 'up' : ''}" />
-	</button>
+				</div>
+			</span>
+		</footer>
+	</div>
 </div>
 
 {#if app.toast}
@@ -286,6 +283,8 @@
 	}
 
 	.window {
+		position: relative;
+		isolation: isolate;
 		width: 100%;
 		max-width: 1060px;
 		height: 100%;
@@ -294,7 +293,12 @@
 		flex-direction: column;
 		border-radius: 30px;
 		border: 1px solid var(--line);
-		background: var(--window);
+		background-color: var(--window);
+		background-image:
+			radial-gradient(46% 40% at 14% 4%, color-mix(in oklab, var(--accent) 30%, transparent), transparent 70%),
+			radial-gradient(38% 34% at 88% 6%, rgba(124, 92, 255, 0.26), transparent 70%),
+			radial-gradient(52% 44% at 50% 104%, rgba(0, 199, 190, 0.18), transparent 72%);
+		background-repeat: no-repeat;
 		backdrop-filter: blur(30px) saturate(1.4);
 		box-shadow: var(--shadow-window);
 		overflow: hidden;
@@ -341,18 +345,6 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-	}
-
-	.demo-chip {
-		padding: 4px 9px;
-		border-radius: 999px;
-		font-size: 10.5px;
-		font-weight: 620;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--muted);
-		background: color-mix(in oklab, var(--ink) 6%, transparent);
-		border: 1px solid var(--line);
 	}
 
 	.icon-button {
@@ -443,15 +435,32 @@
 		padding: 0 26px;
 		border: 0;
 		border-radius: 999px;
-		color: #fff;
 		font: inherit;
 		font-size: 14px;
 		font-weight: 600;
 		cursor: pointer;
-		box-shadow: 0 14px 30px -14px rgba(10, 132, 255, 0.75);
 		transition:
 			transform 0.2s var(--ease-out-soft),
 			filter 0.2s;
+	}
+
+	.primary[data-kind='start'] {
+		background: var(--accent);
+		color: #fff;
+		box-shadow: 0 14px 30px -14px rgba(10, 132, 255, 0.75);
+	}
+
+	.primary[data-kind='recover'] {
+		background: var(--danger);
+		color: #fff;
+		box-shadow: 0 14px 30px -14px rgba(220, 47, 38, 0.6);
+	}
+
+	.primary[data-kind='stop'] {
+		background: color-mix(in oklab, var(--card-strong) 85%, transparent);
+		color: var(--ink);
+		border: 1px solid var(--line);
+		box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.5);
 	}
 
 	.primary:hover:not(:disabled) {
@@ -578,6 +587,16 @@
 		gap: 7px;
 	}
 
+	.status-right {
+		display: inline-flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.mode {
+		font-variant-numeric: tabular-nums;
+	}
+
 	.dot {
 		width: 7px;
 		height: 7px;
@@ -585,30 +604,24 @@
 	}
 
 	.demo {
-		position: fixed;
-		right: 18px;
-		bottom: 18px;
-		z-index: 30;
+		position: relative;
 		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 8px;
+		align-items: center;
 	}
 
 	.fab {
 		display: inline-flex;
 		align-items: center;
-		gap: 7px;
-		padding: 8px 12px;
+		gap: 6px;
+		padding: 5px 10px;
 		border-radius: 999px;
 		border: 1px solid var(--line);
-		background: var(--card-strong);
+		background: color-mix(in oklab, var(--card-strong) 70%, transparent);
 		color: var(--muted);
 		font: inherit;
-		font-size: 12px;
+		font-size: 11px;
 		font-weight: 560;
 		cursor: pointer;
-		box-shadow: var(--shadow-card);
 	}
 
 	.fab:hover {
@@ -624,6 +637,10 @@
 	}
 
 	.popover {
+		position: absolute;
+		right: 0;
+		bottom: calc(100% + 10px);
+		z-index: 30;
 		width: 300px;
 		padding: 12px;
 		border-radius: 18px;
@@ -732,8 +749,18 @@
 		}
 
 		.content {
-			grid-template-columns: minmax(0, 1fr);
+			display: flex;
+			flex-direction: column;
 			overflow-y: auto;
+		}
+
+		.hero,
+		.side {
+			flex: none;
+		}
+
+		.side {
+			overflow: visible;
 		}
 	}
 </style>

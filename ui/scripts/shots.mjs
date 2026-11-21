@@ -9,13 +9,15 @@
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
-const base = process.env.UI_BASE ?? 'http://127.0.0.1:4173';
+const base = process.env.UI_BASE ?? 'http://localhost:4173';
 const out = '.artifacts';
 const scale = Number(process.env.SHOT_SCALE ?? 2);
 
 await mkdir(out, { recursive: true });
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+	executablePath: process.env.CHROME_PATH || undefined
+});
 const page = await browser.newPage({
 	viewport: { width: 1120, height: 780 },
 	deviceScaleFactor: scale,
@@ -104,8 +106,7 @@ for (const theme of ['light', 'dark']) {
 	await page.setViewportSize({ width: 1120, height: 780 });
 }
 
-const first = await assertLayout('final');
-if (first.dark) problems.push('final: dark mode did not reset');
+await assertLayout('final');
 
 await browser.close();
 

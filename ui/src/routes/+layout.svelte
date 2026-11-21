@@ -20,6 +20,10 @@
 	});
 
 	onMount(() => {
+		// Tauri renders the window frameless and transparent; the panel paints its own light.
+		if ('__TAURI_INTERNALS__' in window) {
+			document.documentElement.classList.add('desktop');
+		}
 		const media = window.matchMedia('(prefers-color-scheme: dark)');
 		const onChange = () => apply();
 		media.addEventListener('change', onChange);

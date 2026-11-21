@@ -57,6 +57,7 @@
 	.sheet {
 		width: min(560px, calc(100vw - 32px));
 		max-height: calc(100vh - 48px);
+		margin: auto;
 		padding: 0;
 		border: 1px solid var(--line);
 		border-radius: 24px;

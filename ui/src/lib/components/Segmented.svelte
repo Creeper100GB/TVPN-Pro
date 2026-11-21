@@ -42,6 +42,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
+		white-space: nowrap;
 		border: 0;
 		border-radius: 999px;
 		padding: 7px 14px;

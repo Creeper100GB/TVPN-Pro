@@ -29,7 +29,7 @@
 		failclosed: {
 			icon: ShieldAlert,
 			tone: 'danger',
-			text: 'Netz gesperrt. Nichts geht raus, bis du entscheidest.'
+			text: 'Die Filter bleiben gesetzt, auch wenn der Dienst neu startet. Erst der Notfall-Reset öffnet das Netz.'
 		},
 		mac_unsupported: {
 			icon: Fingerprint,

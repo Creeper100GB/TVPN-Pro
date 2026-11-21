@@ -114,3 +114,13 @@ button,
 		transition-duration: 0.01ms !important;
 	}
 }
+
+/* Tauri: the window is frameless and transparent; the panel carries the light
+   and the corners show the desktop. */
+html.desktop body {
+	background: transparent;
+}
+
+html.desktop body::before {
+	display: none;
+}
