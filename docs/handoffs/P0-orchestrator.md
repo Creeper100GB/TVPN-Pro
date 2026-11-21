@@ -1,25 +1,27 @@
-## Übergabe: orchestrator, Phase 0 (P0-01 bis P0-07)
+## Übergabe: orchestrator, Phase 0 (P0-01 bis P0-07) plus UI-Shell
 
 - **Fertig:**
-  - P0-01: `opencode v2.3.2` geprüft, alle acht Agenten-Dateien auf natives V2-Frontmatter umgestellt (`permissions`-Array, Actions `shell`/`edit`/`external_directory`), `external_directory: ask` ergänzt. `opencode debug agents` listet alle acht ohne Fehler.
-  - P0-02: Repo-Gerüst, `.gitignore`, `.gitattributes`, `justfile`, Rust-Workspace mit sechs leeren Crates, CI-Skelett (GitHub Actions, windows-latest), Redaktions-Gate mit Fixtures, `tools/check-powershell.ps1`, `docs/LICENSES.md` (Gerüst).
-  - P0-03: `docs/THREAT_MODEL.md` geschrieben.
+  - P0-01: `opencode v2.3.2` geprüft, alle acht Agenten-Dateien auf natives V2-Frontmatter umgestellt (`permissions`-Array, Actions `shell`/`edit`/`external_directory`), `external_directory: ask` ergänzt.
+  - P0-02: Repo-Gerüst, `.gitignore`, `.gitattributes`, `justfile`, Rust-Workspace mit sechs leeren Crates, CI-Skelett, Redaktions-Gate mit Fixtures, `tools/check-powershell.ps1`, `docs/LICENSES.md` (Gerüst).
+  - P0-03: `docs/THREAT_MODEL.md`.
   - P0-04: `contracts/ipc-v0.md` um Transport, Token, Envelope, Kommandos, Ereignisse, Datenmodelle, Settings-Whitelist, Übergänge, Fehlercodes und URL-Regeln ergänzt.
   - P0-05: `tests/vm/README.md`, `tests/vm/run-in-vm.ps1` (Hyper-V, PowerShell Direct, Checkpoint-Rollback), `tests/vm/smoke.ps1`.
   - P0-06: `docs/canary.md` plus lauffähiges `tests/canary/canary.py`.
-  - P0-07: Toolchain installiert (Rust MSVC, VS Build Tools 2022, PowerShell 7, tauri-cli).
+  - P0-07: Toolchain installiert (Rust 1.100.0 MSVC, VS Build Tools 17.14, SDK 10.0.26100, PowerShell 7.7, Tauri CLI 2.12.6).
+  - Zusatz: `ui/` als macOS-artige Svelte-5-Shell mit Mock-IPC, allen elf Zuständen, Einstellungen, Sitzungs-Zusammenfassung, Hell/Dunkel, Playwright-Designprüfung. Tauri-Fenster (frameless, transparent) vorhanden, `cargo check` grün.
 - **Getestet (Host/VM, Befehle, Ergebnis):**
   - Host: `opencode debug agents` → 8 Agenten, keine Ladefehler.
-  - Host: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace` → grün.
-  - Host: `powershell -File tools/check-powershell.ps1` → 6 Skripte, keine Syntaxfehler.
-  - Host: `powershell -File tests/log-redaction/check-log-redaction.ps1 -SelfTest` → PASS, Clean-Fixture ohne Fehlalarm.
+  - Host: `just verify` → fmt, clippy, tests, pscheck (7 Skripte), Redaktions-Gate: grün.
+  - Host: `bun --cwd ui run check` → 0 Fehler, 0 Warnungen; `bun --cwd ui run build` → grün.
+  - Host: `node ui/scripts/shots.mjs` → `UI check passed` (30 Screenshots, 0 Konsolenfehler, kein Überlauf, schmales Layout geprüft).
+  - Host: `cargo check --manifest-path ui/src-tauri/Cargo.toml` → grün.
   - Host: `python -m py_compile tests/canary/canary.py` → ok.
-  - **Nicht getestet:** `run-in-vm.ps1` in einer echten VM (es existiert noch keine VM), GitHub-CI (nichts gepusht).
+  - **Nicht getestet:** `run-in-vm.ps1` in einer echten VM (keine VM), GitHub-CI (nichts gepusht), Tauri-Fenster auf einem Bildschirm.
 - **Offen / Risiken:**
   - Keine Test-VM vorhanden; P0-05 ist ungeprüft.
   - CI-Lauf auf GitHub unbewiesen; lokal ist alles grün.
+  - Tauri-Fenster wurde nie geöffnet; CSP/Inline-Script im WebView2 ist die erste Verdachtsstelle.
+  - `link.exe` aus Git liegt vor dem MSVC-Linker; `tools/with-msvc.ps1` umgeht das.
   - Eigene Projektlizenz offen (D22).
-  - `Cargo.lock` muss nach dem ersten Build committet werden.
-  - Glob-Regeln in den Agenten sind Komfort, keine Sandbox; Durchsetzung bleibt Review und VM-Zwang.
 - **Brauche von anderen (Contract-Änderung?):** Nein. Für Phase 1: Freigabe G0, Test-VM mit Checkpoint `sauber`, Mullvad-Konto, optional Canary-Server.
-- **Nächster Schritt:** Nach G0 Spikes in der Reihenfolge S1 + S3 (Wave A), dann S2 + S4 (Scanner-Teil), dann S6 + S4/S5 (Wave C). Worktrees: `net-core`, `privacy-shield` zuerst.
+- **Nächster Schritt:** Nach G0 Spikes in der Reihenfolge S1 + S3 (Wave A), dann S2 + S4a (Wave B), dann S6 + S4b/S5 (Wave C). Worktrees: `net-core`, `privacy-shield` zuerst.
