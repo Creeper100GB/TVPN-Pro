@@ -13,7 +13,7 @@ Stand: 21. November 2026. Auftrag: `PLAN.md` Abschnitt 9, Aufgaben P0-01 bis P0-
 | P0-05 | `tests/vm/README.md`, `run-in-vm.ps1`, `smoke.ps1` | Syntax geprüft; **nicht** in einer VM gelaufen (keine VM vorhanden) |
 | P0-06 | `docs/canary.md`, `tests/canary/canary.py` | `python -m py_compile` ok; nicht auf einem Server deployt |
 | P0-07 | Toolchain installiert und verifiziert | Versionen in Abschnitt 6 |
-| UI (vorgezogen) | `ui/`: macOS-artige Shell, 11 Zustände, Einstellungen, Sitzungs-Zusammenfassung, Demo-Leiste | `svelte-check` 0 Fehler, Build grün, Playwright-Prüfung grün, Screenshots in `docs/reports/screens/` |
+| UI (vorgezogen) | `ui/`: macOS-artige Shell, 11 Zustände, Einstellungen, Sitzungs-Zusammenfassung, Tester-Infos in den Einstellungen | `svelte-check` 0 Fehler, Build grün, Playwright-Prüfung grün, Screenshots in `docs/reports/screens/` |
 
 **Nicht bewiesen:** der GitHub-CI-Lauf (nichts gepusht), der VM-Runner (keine VM), das Tauri-Fenster auf einem echten Bildschirm (keine GUI-Prüfung in dieser Sitzung).
 

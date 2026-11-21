@@ -1,5 +1,6 @@
-// Visual check for the UI shell. Serves the static build, walks every state,
-// captures light/dark screenshots and fails on console errors or layout overflow.
+// Visual check for the UI shell. Serves the static build, drives the real
+// enable/disable flow, captures light/dark screenshots and fails on console
+// errors or layout overflow.
 //
 //   bun run preview          # in another terminal (port 4173)
 //   bun run shots
@@ -38,11 +39,9 @@ async function setTheme(mode) {
 	await page.waitForTimeout(150);
 }
 
-async function jump(state) {
-	await page.getByRole('button', { name: 'Demo-Zustände', exact: true }).click();
-	await page.getByRole('button', { name: state, exact: true }).click();
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(350);
+async function waitForState(label) {
+	await page.getByRole('heading', { name: label }).waitFor({ timeout: 20_000 });
+	await page.waitForTimeout(250);
 }
 
 async function shot(name) {
@@ -72,38 +71,37 @@ async function assertLayout(label) {
 	return metrics;
 }
 
-const states = ['OFF', 'PREFLIGHT', 'ARMING', 'PORTAL', 'VPN_UP', 'TOR_UP', 'READY', 'DEGRADED', 'FAILCLOSED', 'TEARDOWN', 'RECOVERY'];
-
 for (const theme of ['light', 'dark']) {
 	await setTheme(theme);
-	for (const state of states) {
-		await jump(state);
-		await shot(`${theme}-state-${state.toLowerCase()}`);
-		if (state === 'OFF' || state === 'READY' || state === 'FAILCLOSED') {
-			await assertLayout(`${theme}/${state}`);
-		}
-	}
 
-	await jump('READY');
+	await waitForState('Aus');
+	await shot(`${theme}-state-off`);
+
+	await page.getByRole('button', { name: 'Schutz einschalten' }).click();
+	await waitForState('Geschützt');
+	await shot(`${theme}-state-ready`);
+	await assertLayout(`${theme}/READY`);
+
 	await page.getByRole('button', { name: 'Einstellungen öffnen' }).click();
 	await page.waitForTimeout(350);
 	await shot(`${theme}-settings`);
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(200);
 
-	await page.getByRole('button', { name: 'Demo-Zustände', exact: true }).click();
-	await page.getByRole('button', { name: 'Sitzungs-Zusammenfassung zeigen' }).click();
+	await page.getByRole('button', { name: 'Schutz ausschalten' }).click();
+	await page.getByRole('dialog', { name: 'Sitzung beendet' }).waitFor({ timeout: 20_000 });
 	await page.waitForTimeout(350);
 	await shot(`${theme}-summary`);
 	await page.keyboard.press('Escape');
+	await waitForState('Aus');
 
 	// Narrow window: layout must collapse to one column without sideways scrolling.
 	await page.setViewportSize({ width: 520, height: 860 });
 	await page.waitForTimeout(250);
-	await jump('READY');
 	await shot(`${theme}-narrow`);
 	await assertLayout(`${theme}/narrow`);
 	await page.setViewportSize({ width: 1120, height: 780 });
+	await page.waitForTimeout(200);
 }
 
 await assertLayout('final');

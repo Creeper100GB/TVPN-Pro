@@ -1,9 +1,12 @@
 <script lang="ts">
-	import { ChevronDown } from 'lucide-svelte';
+	import { Check, ChevronDown, Copy } from 'lucide-svelte';
 	import { COUNTRIES } from '../countries';
+	import { isDesktop } from '../desktop';
+	import { copyText, formatDiagnostics } from '../diagnostics';
 	import { app, panic, updateSetting } from '../mock.svelte';
 	import { setTheme, theme } from '../theme.svelte';
 	import type { BlockFallback, MacMode, TorrentMode } from '../types';
+	import { APP_VERSION } from '../version';
 	import Segmented from './Segmented.svelte';
 	import Sheet from './Sheet.svelte';
 	import Toggle from './Toggle.svelte';
@@ -29,6 +32,29 @@
 	{ value: 'light' as const, label: 'Hell' },
 	{ value: 'dark' as const, label: 'Dunkel' }
 ];
+
+	let copyState = $state<'idle' | 'ok' | 'error'>('idle');
+	let copyTimer: ReturnType<typeof setTimeout> | null = null;
+
+	async function copyDiagnostics() {
+		const report = formatDiagnostics({
+			version: APP_VERSION,
+			desktop: isDesktop,
+			state: app.state,
+			settings: app.settings,
+			summary: app.lastSummary
+		});
+
+		try {
+			await copyText(report);
+			copyState = 'ok';
+		} catch {
+			copyState = 'error';
+		}
+
+		if (copyTimer) clearTimeout(copyTimer);
+		copyTimer = setTimeout(() => (copyState = 'idle'), 4000);
+	}
 </script>
 
 <Sheet
@@ -218,6 +244,27 @@
 		<button type="button" class="danger-button" onclick={panic}>Jetzt sperren</button>
 	</section>
 
+	<section>
+		<div class="tester-row">
+			<button
+				type="button"
+				class="tester-button"
+				title="Kopiert Version und Systemdaten für Fehlerberichte. Keine IP, MAC, URL oder Dateinamen."
+				onclick={copyDiagnostics}
+			>
+				{#if copyState === 'ok'}
+					<Check size={13} />
+				{:else}
+					<Copy size={13} />
+				{/if}
+				Tester-Infos kopieren
+			</button>
+			<span class="tester-feedback" role="status">
+				{#if copyState === 'ok'}Kopiert.{:else if copyState === 'error'}Kopieren nicht möglich.{/if}
+			</span>
+		</div>
+	</section>
+
 	{#snippet footer()}
 		<button type="button" class="done" onclick={() => (app.settingsOpen = false)}>Fertig</button>
 	{/snippet}
@@ -371,5 +418,39 @@
 
 	.done:active {
 		transform: scale(0.98);
+	}
+
+	.tester-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.tester-feedback {
+		font-size: 11.5px;
+		color: var(--muted);
+	}
+
+	.tester-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 11px;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 11.5px;
+		font-weight: 560;
+		cursor: pointer;
+		transition:
+			color 0.2s,
+			background 0.2s;
+	}
+
+	.tester-button:hover {
+		color: var(--ink);
+		background: color-mix(in oklab, var(--ink) 5%, transparent);
 	}
 </style>

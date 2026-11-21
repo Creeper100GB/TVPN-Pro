@@ -26,7 +26,6 @@ interface AppStore {
 	banners: BannerKind[];
 	downloads: DownloadItem[];
 	settings: Settings;
-	demoPortal: boolean;
 	failureCode: string | null;
 	lastSummary: SessionSummary | null;
 	summaryOpen: boolean;
@@ -61,7 +60,6 @@ export const app = $state<AppStore>({
 	banners: [],
 	downloads: [],
 	settings: { ...defaultSettings },
-	demoPortal: false,
 	failureCode: null,
 	lastSummary: null,
 	summaryOpen: false,
@@ -308,14 +306,6 @@ export async function enable() {
 	await sleep(1000);
 	if (my !== generation) return;
 
-	if (app.demoPortal) {
-		setState('PORTAL', 34);
-		addBanner('portal_open');
-		await sleep(3600);
-		if (my !== generation) return;
-		removeBanner('portal_open');
-	}
-
 	app.vpnConnected = true;
 	app.country = app.settings.vpnCountry === 'random' ? pickCountry() : app.settings.vpnCountry;
 	setState('VPN_UP', 55);
@@ -411,103 +401,6 @@ export async function recover() {
 	removeBanner('degraded');
 	setState('OFF', 0);
 	showToast('Netz wiederhergestellt. Es ist kein Filter mehr aktiv.');
-}
-
-/** Demo helper: jump straight to a state with consistent details. */
-export function jumpTo(state: AppState) {
-	generation++;
-	const armed = ['ARMING', 'PORTAL', 'VPN_UP', 'TOR_UP', 'READY', 'DEGRADED', 'FAILCLOSED'].includes(state);
-
-	app.firewallArmed = armed;
-	app.banners = [];
-	app.failureCode = null;
-	app.watchdog = 'ok';
-
-	switch (state) {
-		case 'OFF':
-			app.vpnConnected = false;
-			app.country = null;
-			app.torBootstrap = 0;
-			app.circuit = false;
-			app.macRandomized = false;
-			break;
-		case 'PREFLIGHT':
-			app.vpnConnected = false;
-			app.country = null;
-			app.torBootstrap = 0;
-			app.circuit = false;
-			break;
-		case 'ARMING':
-			app.vpnConnected = false;
-			app.country = null;
-			app.torBootstrap = 0;
-			app.circuit = false;
-			app.macRandomized = true;
-			break;
-		case 'PORTAL':
-			app.vpnConnected = false;
-			app.country = null;
-			app.torBootstrap = 0;
-			app.circuit = false;
-			app.macRandomized = true;
-			addBanner('portal_open');
-			break;
-		case 'VPN_UP':
-			app.vpnConnected = true;
-			app.country = 'se';
-			app.torBootstrap = 0;
-			app.circuit = false;
-			app.macRandomized = true;
-			break;
-		case 'TOR_UP':
-			app.vpnConnected = true;
-			app.country = 'se';
-			app.torBootstrap = 72;
-			app.circuit = false;
-			app.macRandomized = true;
-			break;
-		case 'READY':
-			app.vpnConnected = true;
-			app.country = 'se';
-			app.torBootstrap = 100;
-			app.circuit = true;
-			app.macRandomized = true;
-			break;
-		case 'DEGRADED':
-			app.vpnConnected = true;
-			app.country = 'nl';
-			app.torBootstrap = 100;
-			app.circuit = true;
-			app.macRandomized = true;
-			app.watchdog = 'warn';
-			app.failureCode = 'E_TOR_CIRCUIT_FAILED';
-			addBanner('degraded');
-			break;
-		case 'FAILCLOSED':
-			app.vpnConnected = false;
-			app.country = null;
-			app.torBootstrap = 0;
-			app.circuit = false;
-			app.macRandomized = true;
-			app.watchdog = 'critical';
-			app.failureCode = 'E_TOR_BOOTSTRAP_TIMEOUT';
-			addBanner('failclosed');
-			break;
-		case 'TEARDOWN':
-			app.vpnConnected = true;
-			app.country = 'se';
-			app.torBootstrap = 40;
-			app.circuit = false;
-			break;
-		case 'RECOVERY':
-			app.vpnConnected = false;
-			app.country = null;
-			app.torBootstrap = 0;
-			app.circuit = false;
-			break;
-	}
-
-	setState(state);
 }
 
 export function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]) {

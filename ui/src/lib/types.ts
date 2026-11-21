@@ -73,17 +73,3 @@ export interface SessionSummary {
 	failclosedCount: number;
 	reasons: string[];
 }
-
-export const STATE_ORDER: AppState[] = [
-	'OFF',
-	'PREFLIGHT',
-	'ARMING',
-	'PORTAL',
-	'VPN_UP',
-	'TOR_UP',
-	'READY',
-	'DEGRADED',
-	'FAILCLOSED',
-	'TEARDOWN',
-	'RECOVERY'
-];

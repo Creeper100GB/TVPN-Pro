@@ -2,9 +2,7 @@
 	import { onMount } from 'svelte';
 	import {
 		Activity,
-		ChevronDown,
 		Download,
-		FlaskConical,
 		Globe,
 		Network,
 		Settings as SettingsIcon,
@@ -21,7 +19,6 @@
 		app,
 		disable,
 		enable,
-		jumpTo,
 		panic,
 		patchDownload,
 		quarantinedDownloadCount,
@@ -29,15 +26,13 @@
 		showToast
 	} from '../lib/mock.svelte';
 	import { STATE_META, TONE_VAR, isArmed, isTransient } from '../lib/states';
-	import { STATE_ORDER } from '../lib/types';
 	import Banner from '../lib/components/Banner.svelte';
 	import DownloadSheet from '../lib/components/DownloadSheet.svelte';
 	import PowerButton from '../lib/components/PowerButton.svelte';
 	import SessionSummary from '../lib/components/SessionSummary.svelte';
 	import SettingsSheet from '../lib/components/SettingsSheet.svelte';
 	import StatRow from '../lib/components/StatRow.svelte';
-
-	let demoOpen = $state(false);
+	import { APP_VERSION } from '../lib/version';
 
 	const meta = $derived(STATE_META[app.state]);
 	const busy = $derived(isTransient(app.state));
@@ -143,8 +138,6 @@
 		}
 	}
 </script>
-
-<svelte:window onkeydown={(event) => event.key === 'Escape' && (demoOpen = false)} />
 
 <div class="stage">
 	<div class="window">
@@ -310,64 +303,7 @@
 				{meta.label} · seit {startLabel}
 			</span>
 			<span class="status-right">
-				<span class="mode">Fokus-Modus · v0.1.0</span>
-
-				<div class="demo">
-					{#if demoOpen}
-						<div class="popover" role="dialog" aria-label="Demo-Zustände">
-							<p class="pop-title">Zustand ansehen</p>
-							<div class="pop-grid">
-								{#each STATE_ORDER as state (state)}
-									<button
-										type="button"
-										class="pop-state"
-										class:current={state === app.state}
-										onclick={() => jumpTo(state)}
-									>
-										{state}
-									</button>
-								{/each}
-							</div>
-							<label class="pop-toggle">
-								<input type="checkbox" bind:checked={app.demoPortal} />
-								Portal-Schritt simulieren
-							</label>
-							<button
-								type="button"
-								class="pop-state wide"
-								onclick={() => {
-									app.lastSummary = {
-										startedAt: Date.now() - 754000,
-										endedAt: Date.now(),
-										stateReached: 'READY',
-										clean: 3,
-										warned: 1,
-										quarantined: 1,
-										failed: 0,
-										failclosedCount: 1,
-										reasons: ['E_TOR_BOOTSTRAP_TIMEOUT']
-									};
-									app.summaryOpen = true;
-									demoOpen = false;
-								}}
-							>
-								Sitzungs-Zusammenfassung zeigen
-							</button>
-						</div>
-					{/if}
-
-					<button
-						type="button"
-						class="fab"
-						aria-expanded={demoOpen}
-						aria-label="Demo-Zustände"
-						onclick={() => (demoOpen = !demoOpen)}
-					>
-						<FlaskConical size={14} />
-						Demo
-						<ChevronDown size={14} class="chev {demoOpen ? 'up' : ''}" />
-					</button>
-				</div>
+				<span class="mode">Fokus-Modus · v{APP_VERSION}</span>
 			</span>
 		</footer>
 	</div>
@@ -722,53 +658,6 @@
 		border-radius: 50%;
 	}
 
-	.demo {
-		position: relative;
-		display: flex;
-		align-items: center;
-	}
-
-	.fab {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 5px 10px;
-		border-radius: 999px;
-		border: 1px solid var(--line);
-		background: color-mix(in oklab, var(--card-strong) 70%, transparent);
-		color: var(--muted);
-		font: inherit;
-		font-size: 11px;
-		font-weight: 560;
-		cursor: pointer;
-	}
-
-	.fab:hover {
-		color: var(--ink);
-	}
-
-	.fab :global(.chev) {
-		transition: transform 0.2s;
-	}
-
-	.fab :global(.chev.up) {
-		transform: rotate(180deg);
-	}
-
-	.popover {
-		position: absolute;
-		right: 0;
-		bottom: calc(100% + 10px);
-		z-index: 30;
-		width: 300px;
-		padding: 12px;
-		border-radius: 18px;
-		border: 1px solid var(--line);
-		background: var(--card-strong);
-		box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.5);
-		animation: pop-in 0.2s var(--ease-out-soft);
-	}
-
 	@keyframes pop-in {
 		from {
 			opacity: 0;
@@ -778,66 +667,6 @@
 			opacity: 1;
 			transform: none;
 		}
-	}
-
-	.pop-title {
-		margin: 0 0 8px;
-		font-size: 11px;
-		font-weight: 640;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--muted);
-	}
-
-	.pop-grid {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 5px;
-	}
-
-	.pop-state {
-		padding: 6px 4px;
-		border-radius: 8px;
-		border: 1px solid var(--line);
-		background: transparent;
-		color: var(--muted);
-		font: inherit;
-		font-size: 10px;
-		font-weight: 560;
-		cursor: pointer;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.pop-state:hover {
-		color: var(--ink);
-		background: color-mix(in oklab, var(--ink) 5%, transparent);
-	}
-
-	.pop-state.current {
-		color: var(--accent);
-		border-color: color-mix(in oklab, var(--accent) 40%, transparent);
-		background: color-mix(in oklab, var(--accent) 8%, transparent);
-	}
-
-	.pop-state.wide {
-		width: 100%;
-		margin-top: 8px;
-		padding: 8px;
-		font-size: 11px;
-	}
-
-	.pop-toggle {
-		display: flex;
-		align-items: center;
-		gap: 7px;
-		margin-top: 9px;
-		font-size: 11.5px;
-		color: var(--muted);
-	}
-
-	.pop-toggle input {
-		accent-color: var(--accent);
 	}
 
 	.toast {

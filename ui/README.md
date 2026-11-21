@@ -52,10 +52,11 @@ Test: `bun run tauri dev --config tauri.debug.conf.json` startet die App mit Web
 
 ## Aufbau
 
-- `src/routes/+page.svelte`: Fenster, Hero, Seitenleiste, Demo-Leiste.
+- `src/routes/+page.svelte`: Fenster, Hero, Seitenleiste.
 - `src/lib/mock.svelte.ts`: Zustandsautomat und Abläufe (Einschalten, Ausschalten, Panik, Recovery) mit Timern.
 - `src/lib/states.ts`: Beschriftungen, Hinweise und Farbton je Zustand.
-- `src/lib/components/`: PowerButton, Banner, StatRow, Segmented, Toggle, Sheet, SettingsSheet, SessionSummary.
+- `src/lib/components/`: PowerButton, Banner, StatRow, Segmented, Toggle, Sheet, SettingsSheet, DownloadSheet, SessionSummary.
+- `src/lib/diagnostics.ts`: Tester-Infos für Fehlerberichte, ohne IP, MAC, URLs oder Dateinamen.
 - `src/lib/theme.svelte.ts`: Auto/Hell/Dunkel, gespeichert in `localStorage`.
 
 ## Design-Regeln
@@ -67,12 +68,14 @@ Test: `bun run tauri dev --config tauri.debug.conf.json` startet die App mit Web
 - Ehrliche Texte. Nirgends „anonym“, „sicher“ oder „nicht zurückverfolgbar“.
 - A11y: `role="switch"`, `aria-pressed`, `aria-live` für den Zustand, Fokusringe, 44-px-Ziele, `prefers-reduced-motion`.
 
-## Demo-Leiste
+## Tester-Infos
 
-Der Button unten rechts (`Demo`) schaltet jeden Zustand direkt. „Portal-Schritt simulieren“ hängt den PORTAL-Zustand in den Einschaltablauf. Die Sitzungs-Zusammenfassung lässt sich dort ebenfalls öffnen. Die Leiste verschwindet, sobald echte IPC-Daten da sind.
+Unten in den Einstellungen sitzt der kleine Knopf **Tester-Infos kopieren**. Er legt Version, Plattform, WebView-Version, Fenstergröße, Zustand, Einstellungen und die letzte Sitzung in die Zwischenablage. Das reicht für einen Fehlerbericht und enthält keine IP-Adressen, MAC-Adressen, URLs oder Dateinamen.
+
+Es gibt keine Demo-Zustände und keine Beispiel-Sitzung mehr. Die Oberfläche zeigt nur den normalen Ablauf.
 
 ## Noch nicht enthalten
 
 - Tauri-Fenster und IPC (folgt mit dem Dienst, Phase 2).
-- Tray-Icon, Panik-Hotkey, echte Downloads, echte Länderliste.
+- Tray-Icon, Panik-Hotkey, echte Länderliste.
 - Persistenz der Einstellungen (nur Theme wird gespeichert).

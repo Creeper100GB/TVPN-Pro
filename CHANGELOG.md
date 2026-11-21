@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Demo- und Testwerkzeuge entfernt. Stattdessen sitzt ein kleiner Knopf in den Einstellungen, der Tester-Infos für Fehlerberichte kopiert.
+
 ## 0.1.0 – Alpha (2026-11-21)
 
 Erste öffentliche Alpha. **Kein Schutz.** Firewall, VPN und Tor sind nicht implementiert.
