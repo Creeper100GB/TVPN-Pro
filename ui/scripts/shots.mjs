@@ -10,7 +10,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const base = process.env.UI_BASE ?? 'http://localhost:4173';
-const out = '.artifacts';
+const out = process.env.SHOT_OUT ?? '.artifacts';
 const scale = Number(process.env.SHOT_SCALE ?? 2);
 
 await mkdir(out, { recursive: true });
