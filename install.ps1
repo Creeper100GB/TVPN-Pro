@@ -111,7 +111,12 @@ try {
     $arguments = @()
     if ($Silent) { $arguments += '/S' }
 
-    $process = Start-Process -FilePath $installer -ArgumentList $arguments -Wait -PassThru
+    if ($arguments.Count -gt 0) {
+        $process = Start-Process -FilePath $installer -ArgumentList $arguments -Wait -PassThru
+    }
+    else {
+        $process = Start-Process -FilePath $installer -Wait -PassThru
+    }
     if ($process.ExitCode -ne 0) {
         throw "Der Installer endete mit Code $($process.ExitCode)."
     }
