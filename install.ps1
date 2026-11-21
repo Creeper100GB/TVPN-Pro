@@ -16,6 +16,10 @@ param(
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+# Allow the one-liner (irm | iex) to be tested without installing.
+if ($env:TVPN_PRO_NO_INSTALL -eq '1') { $NoInstall = $true }
+if ($env:TVPN_PRO_SILENT -eq '1') { $Silent = $true }
+
 $repository = 'Creeper100GB/TVPN-Pro'
 $releasesUrl = "https://api.github.com/repos/$repository/releases?per_page=10"
 
