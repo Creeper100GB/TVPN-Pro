@@ -40,6 +40,10 @@ ui-build:
 ui-shots:
     bun --cwd ui run shots
 
+# End-to-end: UI flow plus a real file download with hash check and cleanup
+e2e:
+    bun --cwd ui run e2e
+
 # Log redaction gate (self-test against the fixtures)
 redact:
     powershell -NoProfile -ExecutionPolicy Bypass -File tests/log-redaction/check-log-redaction.ps1 -SelfTest

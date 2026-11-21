@@ -24,7 +24,17 @@ bun run check      # svelte-check, 0 Fehler erwartet
 bun run build      # statischer Build nach build/
 bun run preview    # baut nicht, serviert build/ auf 4173
 bun run shots      # Screenshots nach .artifacts/ (preview muss laufen)
+bun run e2e        # End-to-End-Tests (startet den Dev-Server selbst)
 ```
+
+## End-to-End
+
+`tests/e2e/downloads.spec.ts` prüft zwei Dinge:
+
+1. **UI-Ablauf:** einschalten → Download hinzufügen → Urteil „Sauber" → ausschalten → Sitzungs-Zusammenfassung → Liste leeren.
+2. **Echte Datei:** ein lokaler HTTP-Server liefert 256 KiB, die Datei landet in `tests/e2e/.tmp/downloads/`, wird per SHA-256 geprüft und danach mit dem Ordner gelöscht. `existsSync` bestätigt, dass nichts übrig bleibt; `afterAll` räumt auch nach einem Fehlschlag auf.
+
+Der UI-Teil läuft gegen den Mock (es gibt noch keinen Dienst). Der Datei-Teil ist echt, benutzt aber nur `127.0.0.1`. Details: `docs/reports/e2e-download.md`.
 
 ## Aufbau
 

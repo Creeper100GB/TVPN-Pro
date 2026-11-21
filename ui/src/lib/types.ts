@@ -26,6 +26,17 @@ export type WatchdogLevel = 'ok' | 'warn' | 'critical';
 export type BlockFallback = 'off' | 'suggest' | 'auto';
 export type MacMode = 'random' | 'original';
 
+export type DownloadPhase = 'queued' | 'active' | 'paused' | 'done' | 'error';
+export type ScanVerdict = 'clean' | 'warned' | 'quarantined' | 'failed';
+
+export interface DownloadItem {
+	id: string;
+	label: string;
+	phase: DownloadPhase;
+	progress: number;
+	verdict: ScanVerdict | null;
+}
+
 export interface Settings {
 	vpnEnabled: boolean;
 	vpnCountry: string;

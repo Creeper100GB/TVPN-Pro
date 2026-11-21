@@ -41,3 +41,25 @@ jobs:
 
       - name: Log redaction gate self-test
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests/log-redaction/check-log-redaction.ps1 -SelfTest
+
+  e2e:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install UI dependencies
+        working-directory: ui
+        run: bun install --frozen-lockfile
+
+      - name: Install Chromium
+        working-directory: ui
+        run: bunx playwright install chromium
+
+      - name: End-to-end tests
+        working-directory: ui
+        run: bun run e2e

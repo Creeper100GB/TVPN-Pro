@@ -7,14 +7,27 @@
 		Globe,
 		Network,
 		Settings as SettingsIcon,
+		ShieldAlert,
 		ShieldCheck,
 		Wifi
 	} from 'lucide-svelte';
 	import { countryName } from '../lib/countries';
-	import { app, disable, enable, jumpTo, panic, recover, showToast } from '../lib/mock.svelte';
+	import { isDesktop, windowAction } from '../lib/desktop';
+	import {
+		activeDownloadCount,
+		app,
+		disable,
+		enable,
+		jumpTo,
+		panic,
+		quarantinedDownloadCount,
+		recover,
+		showToast
+	} from '../lib/mock.svelte';
 	import { STATE_META, TONE_VAR, isArmed, isTransient } from '../lib/states';
 	import { STATE_ORDER } from '../lib/types';
 	import Banner from '../lib/components/Banner.svelte';
+	import DownloadSheet from '../lib/components/DownloadSheet.svelte';
 	import PowerButton from '../lib/components/PowerButton.svelte';
 	import SessionSummary from '../lib/components/SessionSummary.svelte';
 	import SettingsSheet from '../lib/components/SettingsSheet.svelte';
@@ -52,6 +65,16 @@
 		app.state === 'OFF' ? 'start' : app.state === 'FAILCLOSED' ? 'recover' : 'stop'
 	);
 
+	const powerLabel = $derived(
+		app.state === 'OFF'
+			? 'Schutz einschalten'
+			: app.state === 'FAILCLOSED'
+				? 'Notfall-Reset starten'
+				: app.state === 'READY' || app.state === 'DEGRADED'
+					? 'Schutz ausschalten'
+					: meta.action
+	);
+
 	function primary() {
 		switch (app.state) {
 			case 'OFF':
@@ -78,11 +101,36 @@
 <div class="stage">
 	<div class="window">
 		<header class="titlebar" data-tauri-drag-region>
-			<div class="brand" data-tauri-drag-region>
-				<div class="logo"><ShieldCheck size={19} strokeWidth={2.1} /></div>
-				<div data-tauri-drag-region>
-					<h1 data-tauri-drag-region>TVPN Pro</h1>
-					<p class="sub" data-tauri-drag-region>Fokus-Modus · keine Telemetrie</p>
+			<div class="titlebar-left" data-tauri-drag-region>
+				{#if isDesktop}
+					<div class="window-controls">
+						<button
+							type="button"
+							class="traffic close"
+							aria-label="Fenster schließen"
+							onclick={() => windowAction('close')}
+						></button>
+						<button
+							type="button"
+							class="traffic minimize"
+							aria-label="Fenster minimieren"
+							onclick={() => windowAction('minimize')}
+						></button>
+						<button
+							type="button"
+							class="traffic maximize"
+							aria-label="Fenster maximieren"
+							onclick={() => windowAction('maximize')}
+						></button>
+					</div>
+				{/if}
+
+				<div class="brand" data-tauri-drag-region>
+					<div class="logo"><ShieldCheck size={19} strokeWidth={2.1} /></div>
+					<div data-tauri-drag-region>
+						<h1 data-tauri-drag-region>TVPN Pro</h1>
+						<p class="sub" data-tauri-drag-region>Fokus-Modus · keine Telemetrie</p>
+					</div>
 				</div>
 			</div>
 
@@ -106,7 +154,7 @@
 					state={app.state}
 					progress={app.progress}
 					{tone}
-					label={meta.action}
+					label={powerLabel}
 					disabled={primaryDisabled}
 					onclick={primary}
 				/>
@@ -174,16 +222,30 @@
 				<section class="card" aria-labelledby="dl-title">
 					<header class="card-head">
 						<h3 id="dl-title">Downloads</h3>
-						<span class="chip neutral">{app.downloads.active} aktiv</span>
+						<button
+							type="button"
+							class="chip-button"
+							aria-label="Downloads öffnen"
+							onclick={() => (app.downloadsOpen = true)}
+						>
+							Öffnen
+						</button>
 					</header>
 					<div class="card-body">
 						<StatRow
-							label="In Quarantäne"
-							value={String(app.downloads.quarantined)}
-							tone={app.downloads.quarantined > 0 ? 'warn' : 'neutral'}
+							label="Aktiv"
+							value={String(activeDownloadCount())}
+							tone={activeDownloadCount() > 0 ? 'ok' : 'neutral'}
 							divider={false}
 						>
 							{#snippet icon()}<Download size={15} strokeWidth={1.8} />{/snippet}
+						</StatRow>
+						<StatRow
+							label="In Quarantäne"
+							value={String(quarantinedDownloadCount())}
+							tone={quarantinedDownloadCount() > 0 ? 'warn' : 'neutral'}
+						>
+							{#snippet icon()}<ShieldAlert size={15} strokeWidth={1.8} />{/snippet}
 						</StatRow>
 						<p class="small-note">
 							Scans laufen über Defender und ClamAV. Keine 0-Days, keine Dokumente, die nach dem
@@ -272,6 +334,7 @@
 {/if}
 
 <SettingsSheet />
+<DownloadSheet />
 <SessionSummary />
 
 <style>
@@ -309,6 +372,45 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 16px 20px 10px;
+	}
+
+	.titlebar-left {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+	}
+
+	.window-controls {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.traffic {
+		width: 12px;
+		height: 12px;
+		padding: 0;
+		border: 0;
+		border-radius: 50%;
+		cursor: pointer;
+		box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+		transition: filter 0.15s;
+	}
+
+	.traffic:hover {
+		filter: brightness(0.92);
+	}
+
+	.traffic.close {
+		background: #ff5f57;
+	}
+
+	.traffic.minimize {
+		background: #febc2e;
+	}
+
+	.traffic.maximize {
+		background: #28c840;
 	}
 
 	.brand {
@@ -547,9 +649,24 @@
 		background: color-mix(in oklab, var(--accent) 12%, transparent);
 	}
 
-	.chip.neutral {
+	.chip-button {
+		padding: 3px 10px;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: transparent;
 		color: var(--muted);
-		background: color-mix(in oklab, var(--ink) 6%, transparent);
+		font: inherit;
+		font-size: 10.5px;
+		font-weight: 620;
+		cursor: pointer;
+		transition:
+			color 0.2s,
+			background 0.2s;
+	}
+
+	.chip-button:hover {
+		color: var(--ink);
+		background: color-mix(in oklab, var(--ink) 5%, transparent);
 	}
 
 	.card-body {

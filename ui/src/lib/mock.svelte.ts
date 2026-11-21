@@ -3,6 +3,8 @@ import { STATE_META } from './states';
 import type {
 	AppState,
 	BannerKind,
+	DownloadItem,
+	ScanVerdict,
 	Settings,
 	SessionSummary,
 	WatchdogLevel
@@ -20,13 +22,14 @@ interface AppStore {
 	firewallArmed: boolean;
 	watchdog: WatchdogLevel;
 	banners: BannerKind[];
-	downloads: { active: number; quarantined: number };
+	downloads: DownloadItem[];
 	settings: Settings;
 	demoPortal: boolean;
 	failureCode: string | null;
 	lastSummary: SessionSummary | null;
 	summaryOpen: boolean;
 	settingsOpen: boolean;
+	downloadsOpen: boolean;
 	toast: string | null;
 }
 
@@ -54,13 +57,14 @@ export const app = $state<AppStore>({
 	firewallArmed: false,
 	watchdog: 'ok',
 	banners: [],
-	downloads: { active: 0, quarantined: 0 },
+	downloads: [],
 	settings: { ...defaultSettings },
 	demoPortal: false,
 	failureCode: null,
 	lastSummary: null,
 	summaryOpen: false,
 	settingsOpen: false,
+	downloadsOpen: false,
 	toast: null
 });
 
@@ -94,6 +98,106 @@ export function showToast(message: string) {
 	app.toast = message;
 	if (toastTimer) clearTimeout(toastTimer);
 	toastTimer = setTimeout(() => (app.toast = null), 4000);
+}
+
+/** How many downloads are queued, running or paused. */
+export function activeDownloadCount(): number {
+	return app.downloads.filter(
+		(item) => item.phase === 'queued' || item.phase === 'active' || item.phase === 'paused'
+	).length;
+}
+
+/** How many downloads ended up in quarantine. */
+export function quarantinedDownloadCount(): number {
+	return app.downloads.filter((item) => item.verdict === 'quarantined').length;
+}
+
+function summarizeDownloads() {
+	let clean = 0;
+	let warned = 0;
+	let quarantined = 0;
+	let failed = 0;
+
+	for (const item of app.downloads) {
+		switch (item.verdict) {
+			case 'clean':
+				clean += 1;
+				break;
+			case 'warned':
+				warned += 1;
+				break;
+			case 'quarantined':
+				quarantined += 1;
+				break;
+			case 'failed':
+				failed += 1;
+				break;
+			case null:
+				break;
+		}
+	}
+
+	return { clean, warned, quarantined, failed };
+}
+
+/** Contract rules from `contracts/ipc-v0.md` section 7, checked in the UI too. */
+export function validateDownloadUrl(raw: string): string | null {
+	let parsed: URL;
+	try {
+		parsed = new URL(raw);
+	} catch {
+		return 'Das ist keine gültige URL.';
+	}
+
+	if (parsed.protocol !== 'https:') return 'Nur HTTPS ist erlaubt.';
+	if (parsed.port && parsed.port !== '443') return 'Nur Port 443 ist erlaubt.';
+	if (parsed.username || parsed.password) return 'Keine Zugangsdaten in der URL.';
+	if (parsed.hostname.startsWith('[') || /^\d{1,3}(\.\d{1,3}){3}$/.test(parsed.hostname)) {
+		return 'IP-Adressen sind als Ziel nicht erlaubt.';
+	}
+	if (parsed.hostname === 'localhost' || parsed.hostname.endsWith('.local')) {
+		return 'Lokale Namen sind nicht erlaubt.';
+	}
+	return null;
+}
+
+export function addDownload(raw: string): { ok: boolean; error: string | null } {
+	const error = validateDownloadUrl(raw);
+	if (error) return { ok: false, error };
+
+	const parsed = new URL(raw);
+	const label = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() ?? 'download.bin');
+	const id = crypto.randomUUID().slice(0, 8);
+
+	app.downloads.push({ id, label, phase: 'queued', progress: 0, verdict: null });
+	void runDownload(id);
+	return { ok: true, error: null };
+}
+
+async function runDownload(id: string) {
+	await sleep(400);
+	if (!app.downloads.some((item) => item.id === id)) return;
+
+	for (const progress of [18, 42, 67, 88, 100]) {
+		const item = app.downloads.find((entry) => entry.id === id);
+		if (!item) return;
+		item.phase = 'active';
+		item.progress = progress;
+		await sleep(300);
+	}
+
+	const finished = app.downloads.find((entry) => entry.id === id);
+	if (!finished) return;
+	finished.phase = 'done';
+	finished.verdict = 'clean' as ScanVerdict;
+}
+
+export function removeDownload(id: string) {
+	app.downloads = app.downloads.filter((item) => item.id !== id);
+}
+
+export function clearDownloads() {
+	app.downloads = [];
 }
 
 export async function enable() {
@@ -139,7 +243,6 @@ export async function enable() {
 	if (my !== generation) return;
 
 	setState('READY', 100);
-	app.downloads.active = 0;
 	showToast('Schutz steht. Nur Tor und Freigaben kommen raus.');
 }
 
@@ -152,19 +255,19 @@ export async function disable() {
 	await sleep(600);
 	if (my !== generation) return;
 
-	app.downloads.active = 0;
 	setState('TEARDOWN', 72);
 	await sleep(650);
 	if (my !== generation) return;
 
+	const counts = summarizeDownloads();
 	app.lastSummary = {
 		startedAt,
 		endedAt: Date.now(),
 		stateReached: 'READY',
-		clean: 3,
-		warned: 1,
-		quarantined: 0,
-		failed: 0,
+		clean: counts.clean,
+		warned: counts.warned,
+		quarantined: counts.quarantined,
+		failed: counts.failed,
 		failclosedCount: 0,
 		reasons: []
 	};
@@ -185,7 +288,7 @@ export async function panic() {
 	removeBanner('portal_open');
 	removeBanner('fallback_active');
 	setState('TEARDOWN', 55);
-	app.downloads.active = 0;
+	app.downloads = [];
 	showToast('Panik: Apps geschlossen, Netz getrennt.');
 	await sleep(550);
 	if (my !== generation) return;
