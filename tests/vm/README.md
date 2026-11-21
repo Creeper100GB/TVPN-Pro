@@ -22,7 +22,17 @@ Alles, was Netzwerk, Firewall, MAC, Hostname, Dienste oder Treiber anfasst, laeu
   Checkpoint-VM -Name tvpn-test -SnapshotName sauber
   ```
 
-## Ersteinrichtung (einmal)
+## Automatische Einrichtung
+
+Mit einem Windows-11-ISO legt dieses Skript die VM `tvpn-test` an, installiert Windows 11 Pro unbeaufsichtigt, erstellt das lokale Admin-Konto `tvpn`, setzt den Checkpoint `sauber` und führt den Smoke-Test aus:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tests\vm\create-vm.ps1 -IsoPath C:\Users\Jonah\VMs\Win11_Client_x64_en-us.iso
+```
+
+Das Skript braucht eine Admin-Shell und Hyper-V. Es fasst nur die beiden VHDs unter `-VMPath` an und verweigert jeden Datenträger, der kein file-backed virtuelles Laufwerk ist. Das Standard-Passwort des Testkontos steht im Skript; es gilt nur für die wegwerfbare VM.
+
+## Ersteinrichtung (manuell)
 
 1. Hyper-V-Manager oeffnen, neue VM anlegen (Generation 2), Windows 11 installieren.
 2. Im Gast ein lokales Konto `tvpn` mit Adminrechten anlegen (`net user tvpn * /add` und `net localgroup administrators tvpn /add`).
