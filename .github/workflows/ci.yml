@@ -12,7 +12,7 @@ jobs:
   rust:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Rust components
         shell: powershell
@@ -34,7 +34,7 @@ jobs:
   powershell:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Parse all PowerShell scripts
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-powershell.ps1
@@ -45,7 +45,7 @@ jobs:
   e2e:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
