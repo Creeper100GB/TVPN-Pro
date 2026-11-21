@@ -5,13 +5,15 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 ## Phase 0: Fundament (Gate G0)
 | ID | Rolle | Aufgabe | Abnahme | Status |
 |---|---|---|---|---|
-| P0-01 | orchestrator | opencode-Version prüfen, Agent-Dateien gegen Docs abgleichen | Alle Agenten starten ohne Fehler | offen |
-| P0-02 | orchestrator | Repo, `.gitignore`, CI-Skelett, `docs/LICENSES.md` | CI läuft grün (Lint, Unit-Tests, Log-Redaktions-Gate-Stub) | offen |
-| P0-03 | orchestrator | `docs/THREAT_MODEL.md` aus PLAN Abschnitt 2 | Mensch hat gelesen | offen |
-| P0-04 | orchestrator | `contracts/ipc-v0.md` prüfen und ergänzen | Keine offenen Lücken | offen |
-| P0-05 | orchestrator | `tests/vm/README.md` und `run-in-vm.ps1` (Hyper-V oder VBoxManage), Snapshot-Revert | Testskript läuft in der VM und stellt Snapshot wieder her | offen |
-| P0-06 | orchestrator | `docs/canary.md`: Anleitung für Canary-Endpunkt auf eigenem Server | Mensch kann ihn aufsetzen | offen |
-| P0-07 | orchestrator | Toolchain-Liste (Rust, Node LTS, Tauri-CLI, Installer-Tools) an den Menschen | Mensch bestätigt Installation | offen |
+| P0-01 | orchestrator | opencode-Version prüfen, Agent-Dateien gegen Docs abgleichen | Alle Agenten starten ohne Fehler | Review |
+| P0-02 | orchestrator | Repo, `.gitignore`, CI-Skelett, `docs/LICENSES.md` | CI läuft grün (Lint, Unit-Tests, Log-Redaktions-Gate-Stub) | Review |
+| P0-03 | orchestrator | `docs/THREAT_MODEL.md` aus PLAN Abschnitt 2 | Mensch hat gelesen | Review |
+| P0-04 | orchestrator | `contracts/ipc-v0.md` prüfen und ergänzen | Keine offenen Lücken | Review |
+| P0-05 | orchestrator | `tests/vm/README.md` und `run-in-vm.ps1` (Hyper-V oder VBoxManage), Snapshot-Revert | Testskript läuft in der VM und stellt Snapshot wieder her | Review |
+| P0-06 | orchestrator | `docs/canary.md`: Anleitung für Canary-Endpunkt auf eigenem Server | Mensch kann ihn aufsetzen | Review |
+| P0-07 | orchestrator | Toolchain-Liste (Rust, Node LTS, Tauri-CLI, Installer-Tools) an den Menschen | Mensch bestätigt Installation | Review |
+
+**Stand Phase 0 (G0 offen):** P0-01 bis P0-04 und P0-06 sind inhaltlich fertig und lokal geprüft. P0-02 ist lokal grün (fmt, clippy, tests, pscheck, Redaktions-Gate); der GitHub-CI-Lauf ist noch nicht bewiesen, weil nichts gepusht wurde. P0-05 ist geschrieben, aber **nicht in einer VM gelaufen** — es existiert noch keine VM. P0-07 ist installiert (Rust, MSVC, PowerShell 7, tauri-cli); die Bestätigung des Menschen steht mit G0 aus. Details: `docs/reports/phase-0.md`.
 
 ## Phase 1: Spikes (Gate G1), Details in `docs/SPIKES.md`
 | ID | Rolle | Aufgabe | Abnahme | Status |
