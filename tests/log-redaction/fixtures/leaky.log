@@ -1,0 +1,6 @@
+2026-11-21T10:00:00Z INFO state_changed from=OFF to=PREFLIGHT reason_code=ok
+2026-11-21T10:00:01Z WARN canary_probe peer=203.0.113.7 port=443 proto=tcp
+2026-11-21T10:00:02Z DEBUG mac_written adapter=ethernet value=3C:7A:8F:1D:22:B4
+2026-11-21T10:00:03Z DEBUG http_get url=https://example.org/files/report.pdf
+2026-11-21T10:00:04Z DEBUG tor_exit address=2001:db8::1
+2026-11-21T10:00:05Z ERROR failclosed reason=E_TOR_BOOTSTRAP_TIMEOUT elapsed_ms=120000

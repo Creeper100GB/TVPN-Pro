@@ -1,0 +1,7 @@
+2026-11-21T10:00:00Z INFO state_changed from=OFF to=PREFLIGHT reason_code=ok
+2026-11-21T10:00:01Z INFO tor_bootstrap percent=100 elapsed_ms=4210
+2026-11-21T10:00:02Z DEBUG socks_ready addr=127.0.0.1:9150 scheme=socks5h
+2026-11-21T10:00:03Z DEBUG download_file hash_prefix=9f2c1a bytes=1048576
+2026-11-21T10:00:04Z DEBUG circuit_built count=3 build_time_ms=812
+2026-11-21T10:00:05Z INFO state_changed from=TOR_UP to=READY reason_code=ok
+2026-11-21T10:00:06Z WARN watchdog level=warn check_id=C03
