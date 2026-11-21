@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 – Alpha (2026-11-21)
 
 - Demo- und Testwerkzeuge entfernt. Stattdessen sitzt ein kleiner Knopf in den Einstellungen, der Tester-Infos für Fehlerberichte kopiert.
 - macOS-Build in der CI: ad-hoc signierte, nicht notarisierte `.app` als Artefakt. Ohne Schutzfunktionen, nicht gestartet.
+- Installationsskripte: `install.ps1` für Windows, `install.sh` für macOS (wartet auf einen macOS-Release).
+- Release veröffentlicht `SHA256SUMS.txt`; das Windows-Skript prüft die Prüfsumme vor dem Start.
+- README mit sichtbarer Installationsanleitung.
 
 ## 0.1.0 – Alpha (2026-11-21)
 

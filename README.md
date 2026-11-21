@@ -7,6 +7,45 @@
 
 Ein Klick soll später: Firewall scharf, MAC wechseln, VPN verbinden, Tor starten, Tor Browser und Downloader öffnen, Downloads prüfen, alles überwachen und beim Ausschalten sauber abbauen. Das ist der Plan. Gebaut ist bisher das Fundament.
 
+## Installieren
+
+### Windows 10/11 (x64)
+
+Die neueste Alpha ist unsigniert. Sie startet und lädt Dateien, schützt aber nichts.
+
+[**Windows-Installer herunterladen**](https://github.com/Creeper100GB/TVPN-Pro/releases)
+
+Oder direkt in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Creeper100GB/TVPN-Pro/main/install.ps1 | iex
+```
+
+Das Skript sucht den neuesten Release, lädt den Installer, prüft die SHA-256-Prüfsumme und startet ihn. Es installiert nichts ohne deine Zustimmung. Den Code kannst du vorher lesen: [`install.ps1`](install.ps1).
+
+<details>
+<summary><strong>Manuell installieren: drei Schritte</strong></summary>
+
+1. Öffne die [Release-Seite](https://github.com/Creeper100GB/TVPN-Pro/releases) und lade die Datei `TVPN Pro_..._x64-setup.exe`.
+2. Starte die Datei. Windows SmartScreen meldet einen unbekannten Herausgeber: **Weitere Informationen** → **Trotzdem ausführen**.
+3. Starte **TVPN Pro** aus dem Startmenü.
+
+Falls Windows Defender den Download blockiert: Die Datei ist unsigniert und neu, das ist bei einer Alpha normal. Prüfe die SHA-256 aus `SHA256SUMS.txt` im Release, bevor du sie ausführst.
+
+</details>
+
+### macOS (Apple Silicon, in Vorbereitung)
+
+Es gibt noch keinen öffentlichen macOS-Download. Der Build-Check läuft in der CI; Signierung und Notarisierung fehlen. Sobald ein Release da ist, installiert dieses Skript:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Creeper100GB/TVPN-Pro/main/install.sh | bash
+```
+
+Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert sie; Details stehen in [`ui/README.md`](ui/README.md).
+
+> **Was die App nicht kann:** Firewall, VPN und Tor sind nicht implementiert. Der große Knopf simuliert nur den Ablauf. Die App reduziert keine Spuren und verspricht keine Anonymität.
+
 ## Was heute funktioniert
 
 | Bereich | Stand |
