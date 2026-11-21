@@ -8,7 +8,7 @@ Stand: 21. November 2026. Einstieg nach einer Kontext-Kompaktierung. Details ste
 - **Rust-Kern `service/core`**: Zustandsautomat nach Vertrag, Settings inklusive `torrent_mode`, URL- und Magnet-Regeln, IPC-Envelope, Redaktions-Scanner. 48 Tests, clippy sauber.
 - **UI** (Svelte 5, SvelteKit 3, Tailwind 4, Inter lokal): alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Tester-Infos in den Einstellungen, Download-Sheet mit Routen Tor/Direkt/VPN, Bulk-Route für Torrents, Hell/Dunkel. `svelte-check` 0/0.
 - **E2E** (Playwright): 5 Tests, UI-Ablauf, VPN-Bulk-Route, Ablehnung bei blockierten Torrents, echter Datei-Download mit Hash und Löschung, Tester-Infos in der Zwischenablage.
-- **Tauri-Shell**: echter Download im Rust-Teil (`reqwest`, Routen `direct` und `tor` über SOCKS 9150), SHA-256, Defender-Scan (Windows), Abbruch löscht die Datei. Maximierte und Fullscreen-Fenster ohne runde Ecken (verifiziert). Windows-Installer (NSIS) gebaut und gestartet.
+- **Tauri-Shell**: echter Download im Rust-Teil (`reqwest`, Routen `direct` und `tor` über SOCKS 9150), SHA-256, Defender-Scan (Windows), Abbruch löscht die Datei. Maximierte und Fullscreen-Fenster ohne runde Ecken (verifiziert). Windows-Installer (NSIS) und portable EXE gebaut und gestartet.
 - **macOS-Build**: `macos.yml` baut auf `macos-latest` eine ad-hoc signierte `.app` (12,4 MiB) und legt sie als Artefakt ab. Nicht gestartet, nicht notarisiert, ohne Schutzfunktionen.
 - **VM-Runner**, **Canary-Dienst**, **CI-Definitionen**: geschrieben; CI läuft auf GitHub, VM-Runner und Canary sind weiterhin ungeprüft (keine VM, kein Server).
 

@@ -15,7 +15,7 @@ test('tester diagnostics: clipboard gets version, state and settings', async ({ 
 	await expect(settings.getByRole('status')).toHaveText('Kopiert.');
 
 	const report = await page.evaluate(() => navigator.clipboard.readText());
-	expect(report).toContain('TVPN Pro 0.1.1 (Alpha)');
+	expect(report).toContain('TVPN Pro 0.1.2 (Alpha)');
 	expect(report).toContain('Zustand: Aus');
 	expect(report).toContain('Torrents blockiert');
 	expect(report).toContain('Enthält keine IP-Adressen');

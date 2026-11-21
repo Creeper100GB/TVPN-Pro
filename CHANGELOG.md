@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 – Alpha (2026-11-21)
+
+- Portable Windows-EXE: herunterladen, doppelklicken, starten, ohne Installation.
+- Stabile Download-Namen: `TVPN-Pro-Windows-x64-Portable.exe`, `TVPN-Pro-Windows-x64-Setup.exe`, `SHA256SUMS.txt`.
+- README mit direkten Download-Links; das PowerShell-Skript ist nur noch eine Alternative.
+- Installationsskripte gleichen die von GitHub ersetzten Leerzeichen in Asset-Namen ab und starten den Installer ohne leere Argumentliste.
+
 ## 0.1.1 – Alpha (2026-11-21)
 
 - Demo- und Testwerkzeuge entfernt. Stattdessen sitzt ein kleiner Knopf in den Einstellungen, der Tester-Infos für Fehlerberichte kopiert.

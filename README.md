@@ -11,26 +11,24 @@ Ein Klick soll später: Firewall scharf, MAC wechseln, VPN verbinden, Tor starte
 
 ### Windows 10/11 (x64)
 
-Die neueste Alpha ist unsigniert. Sie startet und lädt Dateien, schützt aber nichts.
+**Ohne Installation, direkt starten.** Datei herunterladen, doppelklicken, fertig. Keine Kommandozeile.
 
-[**Windows-Installer herunterladen**](https://github.com/Creeper100GB/TVPN-Pro/releases)
+[**Portable EXE herunterladen**](https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/TVPN-Pro-Windows-x64-Portable.exe)
 
-Oder direkt in PowerShell:
+**Mit Startmenü-Eintrag und Deinstaller.** Datei herunterladen, doppelklicken, Installer bestätigen.
+
+[**Installer herunterladen**](https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/TVPN-Pro-Windows-x64-Setup.exe)
+
+Beide Builds sind unsigniert. Windows SmartScreen warnt beim ersten Start: **Weitere Informationen** → **Trotzdem ausführen**. Die SHA-256-Prüfsummen stehen in [SHA256SUMS.txt](https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/SHA256SUMS.txt). Windows 11 hat WebView2; Windows 10 braucht die WebView2-Runtime. Der Installer lädt sie bei Bedarf nach, die portable EXE nicht.
+
+<details>
+<summary><strong>Alternativ per PowerShell installieren</strong></summary>
 
 ```powershell
 irm https://raw.githubusercontent.com/Creeper100GB/TVPN-Pro/main/install.ps1 | iex
 ```
 
 Das Skript sucht den neuesten Release, lädt den Installer, prüft die SHA-256-Prüfsumme und startet ihn. Es installiert nichts ohne deine Zustimmung. Den Code kannst du vorher lesen: [`install.ps1`](install.ps1).
-
-<details>
-<summary><strong>Manuell installieren: drei Schritte</strong></summary>
-
-1. Öffne die [Release-Seite](https://github.com/Creeper100GB/TVPN-Pro/releases) und lade die Datei `TVPN.Pro_..._x64-setup.exe`.
-2. Starte die Datei. Windows SmartScreen meldet einen unbekannten Herausgeber: **Weitere Informationen** → **Trotzdem ausführen**.
-3. Starte **TVPN Pro** aus dem Startmenü.
-
-Falls Windows Defender den Download blockiert: Die Datei ist unsigniert und neu, das ist bei einer Alpha normal. Prüfe die SHA-256 aus `SHA256SUMS.txt` im Release, bevor du sie ausführst.
 
 </details>
 
