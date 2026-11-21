@@ -6,7 +6,7 @@ Stand: 21. November 2026. Test: `ui/tests/e2e/downloads.spec.ts`. Ausführen mit
 
 | Teil | Real oder Mock | Prüfung |
 |---|---|---|
-| Schutz ein/aus, Zustände, Banner | Mock (kein Dienst, kein Netz) | Klick auf „Einschalten" führt zu „Geschützt"; „Ausschalten" öffnet die Sitzungs-Zusammenfassung |
+| Schutz ein/aus, Zustände, Banner | Mock (kein Dienst, kein Netz) | Klick auf den Power-Knopf führt zu „Geschützt"; erneuter Klick öffnet die Sitzungs-Zusammenfassung |
 | Download-Liste, URL-Prüfung, Fortschritt, Urteil | Mock | HTTPS-Pflicht, Port 443, keine IP-Literale, keine lokalen Namen; Eintrag erreicht „Sauber" |
 | Sitzungs-Zusammenfassung | Mock, aber aus der Download-Liste berechnet | Zähler „Sauber" ist 1, nicht hartkodiert |
 | Aufräumen in der App | Mock | „Liste leeren" hinterlässt den leeren Zustand |
