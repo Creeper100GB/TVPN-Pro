@@ -15,7 +15,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 
 **Stand Phase 0 (G0 offen):** P0-01 bis P0-04 und P0-06 sind inhaltlich fertig und lokal geprüft. P0-02 ist lokal grün (fmt, clippy, tests, pscheck, Redaktions-Gate); der GitHub-CI-Lauf ist noch nicht bewiesen, weil nichts gepusht wurde. P0-05 ist geschrieben, aber **nicht in einer VM gelaufen** — es existiert noch keine VM. P0-07 ist installiert und verifiziert (Rust, MSVC, SDK, PowerShell 7, Tauri CLI); die Bestätigung des Menschen steht mit G0 aus.
 
-**Vorgezogen:** P2-07 (UI-Gerüst gegen IPC-Mock) ist auf Wunsch des Menschen bereits gebaut: `ui/`, alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Hell/Dunkel, Playwright-Designprüfung. Details: `docs/reports/phase-0.md`, Abschnitt 3.
+**Vorgezogen:** P2-07 (UI-Gerüst gegen IPC-Mock) ist auf Wunsch des Menschen bereits gebaut: `ui/`, alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Hell/Dunkel, Playwright-Designprüfung. Dazu ein Downloads-Sheet mit URL-Prüfung, Fortschritt und Urteilen (Mock) sowie ein E2E-Test (`just e2e`): UI-Ablauf plus echter Datei-Download mit SHA-256 und garantierter Löschung. Details: `docs/reports/phase-0.md` Abschnitt 3 und `docs/reports/e2e-download.md`.
 
 **Stand P2-01/P2-02 (läuft):** Der host-sichere Kern in `service/core` ist fertig und getestet (45 Unit-Tests): Zustandsautomat nach Vertrag, Settings-Whitelist mit Alles-oder-nichts-Patch, URL-Regeln, IPC-Envelope mit Größen-/ID-/Versionsprüfung, Redaktions-Scanner. **Offen:** Named-Pipe-Server, `tracing`-Anbindung mit Redaktions-Layer, Hauptprogramm `tvpnd`. Übergabe: `docs/handoffs/P2-01-core.md`.
 
