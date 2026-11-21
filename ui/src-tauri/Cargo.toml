@@ -1,10 +1,11 @@
 [package]
 name = "tvpn-pro"
-version = "0.0.0"
+version = "0.1.0"
 description = "TVPN Pro desktop shell"
 edition = "2021"
 rust-version = "1.85"
 publish = false
+license = "GPL-3.0-or-later"
 
 # Standalone crate: the service crates at the repository root are a separate
 # workspace and must not drag Tauri into every cargo test.

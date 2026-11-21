@@ -46,7 +46,7 @@ Nicht mitgeliefert, nur genutzt: Windows Defender (`MpCmdRun.exe`) ist Teil von 
 
 ## Eigene Lizenz
 
-Das Projekt selbst hat **noch keine Lizenz**. Das ist eine Entscheidung des Menschen und muss vor dem ersten öffentlichen Push oder einer Weitergabe fallen. Kandidaten: MIT/Apache-2.0 (permissiv, erlaubt kommerzielle Nutzung) oder GPL-3.0 (Copyleft, passt zu den gebündelten GPL-Komponenten). Ohne Entscheidung bleibt das Repo „all rights reserved“.
+Das Projekt steht unter **GPL-3.0-or-later**. Der vollständige Text liegt in [`LICENSE`](../LICENSE). Beiträge werden unter derselben Lizenz eingebracht. Die GPL passt zu den gebündelten GPL-Komponenten (Mullvad-App, aria2, ClamAV) und hält Verbesserungen offen.
 
 ## Prüfprotokoll
 
@@ -56,7 +56,6 @@ Das Projekt selbst hat **noch keine Lizenz**. Das ist eine Entscheidung des Mens
 
 ## Offene Punkte
 
-1. Eigene Lizenz wählen (Mensch).
-2. GPL-Verträglichkeit der Bündelung klären (Mullvad-App, aria2, ClamAV) — vor Phase 6.
-3. Quelltextangebot für GPL-Komponenten vorbereiten (Text + Ablageort).
-4. Hashes und Signaturen beim Pinnen eintragen (Phase 4/6).
+1. GPL-Verträglichkeit der Bündelung klären (Mullvad-App, aria2, ClamAV) — vor Phase 6.
+2. Quelltextangebot für GPL-Komponenten vorbereiten (Text + Ablageort).
+3. Hashes und Signaturen beim Pinnen eintragen (Phase 4/6).

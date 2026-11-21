@@ -10,10 +10,11 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
 publish = false
+license = "GPL-3.0-or-later"
 
 # Single dependency policy: every crate and version must be listed in
 # docs/LICENSES.md before it is merged (AGENTS.md).

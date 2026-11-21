@@ -194,6 +194,11 @@
 			</div>
 		</header>
 
+		<div class="alpha" role="note">
+			<ShieldAlert size={13} />
+			Alpha-Vorschau: Firewall, VPN und Tor fehlen noch. Der Knopf simuliert nur den Ablauf.
+		</div>
+
 		<div class="content">
 			<section class="hero card" aria-labelledby="state-title">
 				<p class="eyebrow">Status</p>
@@ -305,7 +310,7 @@
 				{meta.label} · seit {startLabel}
 			</span>
 			<span class="status-right">
-				<span class="mode">Fokus-Modus · v0.0.0</span>
+				<span class="mode">Fokus-Modus · v0.1.0</span>
 
 				<div class="demo">
 					{#if demoOpen}
@@ -518,6 +523,20 @@
 		grid-template-columns: minmax(0, 1fr) 330px;
 		gap: 18px;
 		padding: 4px 20px 18px;
+	}
+
+	.alpha {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		margin: 0 20px 8px;
+		padding: 7px 11px;
+		border-radius: 10px;
+		border: 1px solid color-mix(in oklab, var(--warn) 28%, transparent);
+		background: color-mix(in oklab, var(--warn) 10%, transparent);
+		color: color-mix(in oklab, var(--warn) 75%, var(--ink));
+		font-size: 11.5px;
+		font-weight: 520;
 	}
 
 	.card {
