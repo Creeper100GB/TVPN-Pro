@@ -56,7 +56,7 @@ test('UI: enable, add a download, verdict, disable, clear the list', async ({ pa
 	await page.goto('/');
 
 	await expect(page.getByRole('heading', { name: 'Aus' })).toBeVisible();
-	await page.getByRole('button', { name: 'Einschalten', exact: true }).click();
+	await page.getByRole('button', { name: 'Schutz einschalten' }).click();
 	await expect(page.getByRole('heading', { name: 'Geschützt' })).toBeVisible({ timeout: 15_000 });
 
 	await page.getByRole('button', { name: 'Downloads öffnen' }).click();
@@ -73,7 +73,7 @@ test('UI: enable, add a download, verdict, disable, clear the list', async ({ pa
 
 	await downloads.getByRole('button', { name: 'Fertig' }).click();
 
-	await page.getByRole('button', { name: 'Ausschalten', exact: true }).click();
+	await page.getByRole('button', { name: 'Schutz ausschalten' }).click();
 	const summary = page.getByRole('dialog', { name: 'Sitzung beendet' });
 	await expect(summary).toBeVisible({ timeout: 15_000 });
 	await expect(summary.locator('li').filter({ hasText: 'Sauber' })).toContainText('1');

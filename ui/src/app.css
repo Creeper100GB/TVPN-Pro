@@ -115,18 +115,18 @@ button,
 	}
 }
 
-/* Tauri: the window is frameless and transparent; the panel carries the light
-   and the corners show the desktop. WebView2 cannot blur the desktop behind
-   the window, so the panel is nearly opaque instead of translucent. */
+/* Tauri: the window is frameless and transparent. The panel fills the frame,
+   is opaque, and only the four corners show the desktop. WebView2 cannot blur
+   the desktop behind the window, so translucency would only look dirty. */
 html.desktop {
-	--window: rgba(244, 246, 250, 0.95);
-	--card: rgba(255, 255, 255, 0.86);
-	--card-strong: rgba(255, 255, 255, 0.97);
+	--window: #f1f3f7;
+	--card: rgba(255, 255, 255, 0.9);
+	--card-strong: rgba(255, 255, 255, 0.98);
 }
 
 html.desktop.dark {
-	--window: rgba(18, 19, 22, 0.96);
-	--card: rgba(38, 39, 44, 0.88);
+	--window: #111214;
+	--card: rgba(38, 39, 44, 0.92);
 	--card-strong: rgba(44, 45, 50, 0.98);
 }
 
@@ -136,4 +136,8 @@ html.desktop body {
 
 html.desktop body::before {
 	display: none;
+}
+
+html.desktop .window {
+	backdrop-filter: none;
 }

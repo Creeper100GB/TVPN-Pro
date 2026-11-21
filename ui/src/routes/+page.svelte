@@ -9,7 +9,8 @@
 		Settings as SettingsIcon,
 		ShieldAlert,
 		ShieldCheck,
-		Wifi
+		Wifi,
+		Zap
 	} from 'lucide-svelte';
 	import { countryName } from '../lib/countries';
 	import { isDesktop, windowAction } from '../lib/desktop';
@@ -59,10 +60,6 @@
 
 	const watchdogValue = $derived(
 		app.watchdog === 'ok' ? 'OK' : app.watchdog === 'warn' ? 'Warnung' : 'Kritisch'
-	);
-
-	const primaryKind = $derived(
-		app.state === 'OFF' ? 'start' : app.state === 'FAILCLOSED' ? 'recover' : 'stop'
 	);
 
 	const powerLabel = $derived(
@@ -164,22 +161,6 @@
 					<p class="hint">{meta.hint}</p>
 				</div>
 
-				<div class="buttons">
-					<button
-						type="button"
-						class="primary"
-						data-kind={primaryKind}
-						disabled={primaryDisabled}
-						onclick={primary}
-					>
-						{meta.action}
-					</button>
-
-					{#if app.state === 'READY' || app.state === 'DEGRADED'}
-						<button type="button" class="ghost" onclick={panic}>Panik</button>
-					{/if}
-				</div>
-
 				{#if app.banners.length > 0}
 					<div class="banners">
 						{#each app.banners as kind (kind)}
@@ -257,6 +238,13 @@
 				<p class="fineprint">
 					Reduziert Spuren. Ersetzt kein vorsichtiges Verhalten und verspricht keine Anonymität.
 				</p>
+
+				{#if isArmed(app.state)}
+					<button type="button" class="panic" onclick={panic}>
+						<Zap size={14} />
+						Panik: Apps zu, Netz zu
+					</button>
+				{/if}
 			</aside>
 		</div>
 
@@ -340,7 +328,7 @@
 <style>
 	.stage {
 		height: 100%;
-		padding: 22px;
+		padding: 0;
 		display: grid;
 		place-items: center;
 	}
@@ -349,13 +337,12 @@
 		position: relative;
 		isolation: isolate;
 		width: 100%;
-		max-width: 1060px;
 		height: 100%;
-		max-height: 740px;
+		max-width: none;
+		max-height: none;
 		display: flex;
 		flex-direction: column;
-		border-radius: 30px;
-		border: 1px solid var(--line);
+		border-radius: 14px;
 		background-color: var(--window);
 		background-image:
 			radial-gradient(46% 40% at 14% 4%, color-mix(in oklab, var(--accent) 30%, transparent), transparent 70%),
@@ -363,7 +350,6 @@
 			radial-gradient(52% 44% at 50% 104%, rgba(0, 199, 190, 0.18), transparent 72%);
 		background-repeat: no-repeat;
 		backdrop-filter: blur(30px) saturate(1.4);
-		box-shadow: var(--shadow-window);
 		overflow: hidden;
 	}
 
@@ -526,81 +512,6 @@
 		color: var(--muted);
 	}
 
-	.buttons {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-	}
-
-	.primary {
-		height: 44px;
-		padding: 0 26px;
-		border: 0;
-		border-radius: 999px;
-		font: inherit;
-		font-size: 14px;
-		font-weight: 600;
-		cursor: pointer;
-		transition:
-			transform 0.2s var(--ease-out-soft),
-			filter 0.2s;
-	}
-
-	.primary[data-kind='start'] {
-		background: var(--accent);
-		color: #fff;
-		box-shadow: 0 14px 30px -14px rgba(10, 132, 255, 0.75);
-	}
-
-	.primary[data-kind='recover'] {
-		background: var(--danger);
-		color: #fff;
-		box-shadow: 0 14px 30px -14px rgba(220, 47, 38, 0.6);
-	}
-
-	.primary[data-kind='stop'] {
-		background: color-mix(in oklab, var(--card-strong) 85%, transparent);
-		color: var(--ink);
-		border: 1px solid var(--line);
-		box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.5);
-	}
-
-	.primary:hover:not(:disabled) {
-		filter: brightness(1.05);
-		transform: translateY(-1px);
-	}
-
-	.primary:active:not(:disabled) {
-		transform: scale(0.985);
-	}
-
-	.primary:disabled {
-		opacity: 0.55;
-		cursor: progress;
-		box-shadow: none;
-	}
-
-	.ghost {
-		height: 44px;
-		padding: 0 18px;
-		border-radius: 999px;
-		border: 1px solid var(--line);
-		background: transparent;
-		color: var(--muted);
-		font: inherit;
-		font-size: 13px;
-		font-weight: 560;
-		cursor: pointer;
-		transition:
-			color 0.2s,
-			background 0.2s;
-	}
-
-	.ghost:hover {
-		color: var(--ink);
-		background: color-mix(in oklab, var(--ink) 5%, transparent);
-	}
-
 	.banners {
 		width: 100%;
 		max-width: 420px;
@@ -686,6 +597,27 @@
 		font-size: 11px;
 		line-height: 1.5;
 		color: var(--muted);
+	}
+
+	.panic {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 7px;
+		padding: 10px 14px;
+		border-radius: 14px;
+		border: 1px solid color-mix(in oklab, var(--danger) 30%, transparent);
+		background: color-mix(in oklab, var(--danger) 8%, transparent);
+		color: var(--danger);
+		font: inherit;
+		font-size: 12.5px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.2s;
+	}
+
+	.panic:hover {
+		background: color-mix(in oklab, var(--danger) 15%, transparent);
 	}
 
 	.statusbar {
@@ -856,13 +788,8 @@
 	}
 
 	@media (max-width: 880px) {
-		.stage {
-			padding: 10px;
-		}
-
 		.window {
-			max-height: none;
-			border-radius: 24px;
+			border-radius: 14px;
 		}
 
 		.content {

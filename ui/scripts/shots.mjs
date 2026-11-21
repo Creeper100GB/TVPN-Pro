@@ -66,7 +66,7 @@ async function assertLayout(label) {
 	if (metrics.scrollHeight > metrics.innerHeight + 1) {
 		problems.push(`${label}: vertical overflow (${metrics.scrollHeight} > ${metrics.innerHeight})`);
 	}
-	if (parseFloat(metrics.windowRadius) < 20) {
+	if (parseFloat(metrics.windowRadius) < 10) {
 		problems.push(`${label}: window is not rounded (${metrics.windowRadius})`);
 	}
 	return metrics;
