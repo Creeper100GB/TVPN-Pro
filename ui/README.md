@@ -1,6 +1,6 @@
 # UI-Shell (Prototyp)
 
-Statische Svelte-5-Oberfläche mit Mock-Daten. Es gibt noch keine IPC-Verbindung zum Dienst; alle Zustände werden lokal simuliert. Das ist Absicht: Phase 0/1 bauen keine Netzwerkfunktionen, und die UI muss gegen einen Mock prüfbar sein.
+Statische Svelte-5-Oberfläche mit Mock-Daten. In der Tauri-App ist der Download **echt** (siehe unten), der Schutz-Zustandsautomat ist weiterhin ein Mock, weil der Dienst fehlt.
 
 ## Stack
 
@@ -37,6 +37,18 @@ bun run e2e        # End-to-End-Tests (startet den Dev-Server selbst)
 Der UI-Teil läuft gegen den Mock (es gibt noch keinen Dienst). Der Datei-Teil ist echt, benutzt aber nur `127.0.0.1`. Details: `docs/reports/e2e-download.md`.
 
 Zusätzlich prüft die Suite die **VPN-Bulk-Route**: Magnet-Links werden nur akzeptiert, wenn `torrent_mode = vpn_only` gesetzt ist; bei `blocked` bleibt die Liste leer. Die Route trägt einen eigenen Chip und eine Warnung („Peers sehen deine VPN-IP").
+
+## Echter Download (Tauri)
+
+In der Desktop-App läuft der Download im Rust-Teil (`src-tauri/src/download.rs`), nicht im Mock:
+
+- **Direkt:** ungeschützt, die Warnung steht im Sheet. Für Images mit Prüfsumme.
+- **Über Tor:** nutzt einen lokalen SOCKS-Proxy auf `127.0.0.1:9150`. Ohne laufenden Proxy bricht der Download mit einem Netzwerkfehler ab.
+- **Über VPN:** wird abgelehnt (`vpn_requires_service`); diese Route gehört dem Dienst.
+
+Dateien landen in `%USERPROFILE%\Downloads\TVPN`, kollisionsfrei umbenannt. Während des Transfers wird SHA-256 berechnet; danach versucht die App einen Defender-Scan (`MpCmdRun.exe`). Ist Defender nicht aktiv, lautet das Urteil „Unklar" statt „Sauber". Abbrechen entfernt die Datei.
+
+Test: `bun run tauri dev --config tauri.debug.conf.json` startet die App mit WebView2-Debug-Port; `node scripts/test-desktop-download.mjs` lädt eine Testdatei über die echte UI, prüft die Größe und löscht sie wieder. `scripts/check-window-state.mjs` prüft, dass maximierte Fenster keine runden Ecken mehr haben.
 
 ## Aufbau
 

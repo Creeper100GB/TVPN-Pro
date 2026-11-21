@@ -37,6 +37,21 @@ Running 4 tests using 1 worker
 
 `ui/tests/e2e/.tmp` existiert danach nicht mehr.
 
+## Desktop-Download (Tauri)
+
+Gegen die echte App geprüft (`scripts/test-desktop-download.mjs`, WebView2-Debug-Port):
+
+| Test | Ergebnis |
+|---|---|
+| `https://proof.ovh.net/files/1Mb.dat` über „Direkt" | 1.048.576 Bytes, Datei korrekt, danach gelöscht |
+| `https://www.gnu.org/licenses/gpl-3.0.txt` über „Direkt" | 35.149 Bytes, Urteil „Unklar" |
+| Maximiertes Fenster | `window-full` gesetzt, Radius 0 px |
+| Wiederhergestellt | Radius 14 px |
+
+„Unklar" ist an dieser Stelle richtig: Windows Defender läuft auf dem Host nicht (`AntivirusEnabled: False`), `MpCmdRun` endet mit `0x80004005`. Lieber „Unklar" als ein falsches „Sauber".
+
+Nicht geprüft: Tor-Route (kein SOCKS-Proxy auf 9150), Abbruch mitten im Transfer, Scan mit laufendem Defender.
+
 ## Grenzen
 
 - Der UI-Test läuft gegen den Mock, weil es noch keinen IPC-Server und keinen echten Downloader gibt. Er beweist den Ablauf und die UI-Zustände, nicht die aria2-/Tor-Kette.
