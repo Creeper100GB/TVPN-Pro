@@ -5,6 +5,7 @@ import type {
 	BannerKind,
 	DownloadItem,
 	DownloadRoute,
+	DownloadSource,
 	ScanVerdict,
 	Settings,
 	SessionSummary,
@@ -162,44 +163,75 @@ export function validateDownloadUrl(raw: string): string | null {
 	return null;
 }
 
-export function addDownload(
-	raw: string,
-	route: DownloadRoute = 'tor'
-): { ok: boolean; error: string | null } {
+export interface ParsedDownload {
+	ok: boolean;
+	error: string | null;
+	label: string;
+	source: DownloadSource;
+}
+
+/** Validates the input exactly like the service will. */
+export function parseDownloadInput(raw: string, route: DownloadRoute): ParsedDownload {
 	const value = raw.trim();
 
 	if (route === 'vpn' && app.settings.torrentMode !== 'vpn_only') {
 		return {
 			ok: false,
-			error: 'Die VPN-Route ist ausgeschaltet. Aktiviere sie in den Einstellungen.'
+			error: 'Die VPN-Route ist ausgeschaltet. Aktiviere sie in den Einstellungen.',
+			label: '',
+			source: 'https'
 		};
 	}
 
 	const isMagnet = value.toLowerCase().startsWith('magnet:');
 	if (isMagnet) {
-		if (route !== 'vpn') return { ok: false, error: 'Torrents laufen nur über die VPN-Route.' };
+		if (route !== 'vpn') {
+			return { ok: false, error: 'Torrents laufen nur über die VPN-Route.', label: '', source: 'torrent' };
+		}
 		const magnetError = validateMagnet(value);
-		if (magnetError) return { ok: false, error: magnetError };
-	} else {
-		const urlError = validateDownloadUrl(value);
-		if (urlError) return { ok: false, error: urlError };
+		if (magnetError) {
+			return { ok: false, error: magnetError, label: '', source: 'torrent' };
+		}
+		return { ok: true, error: null, label: magnetLabel(value), source: 'torrent' };
 	}
 
-	const label = isMagnet ? magnetLabel(value) : labelFromUrl(value);
-	const id = crypto.randomUUID().slice(0, 8);
+	const urlError = validateDownloadUrl(value);
+	if (urlError) {
+		return { ok: false, error: urlError, label: '', source: 'https' };
+	}
+	return { ok: true, error: null, label: labelFromUrl(value), source: 'https' };
+}
 
+export function addDownload(
+	raw: string,
+	route: DownloadRoute = 'tor'
+): { ok: boolean; error: string | null } {
+	const parsed = parseDownloadInput(raw, route);
+	if (!parsed.ok) return { ok: false, error: parsed.error };
+
+	const id = crypto.randomUUID().slice(0, 8);
 	app.downloads.push({
 		id,
-		label,
+		label: parsed.label,
 		phase: 'queued',
 		progress: 0,
 		verdict: null,
 		route,
-		source: isMagnet ? 'torrent' : 'https'
+		source: parsed.source
 	});
 	if (route === 'vpn') addBanner('vpn_route');
 	void runDownload(id);
 	return { ok: true, error: null };
+}
+
+/** Adds an item that the Tauri backend will drive. */
+export function trackDownload(item: DownloadItem) {
+	app.downloads.push(item);
+}
+
+export function patchDownload(id: string, patch: Partial<DownloadItem>) {
+	const item = app.downloads.find((entry) => entry.id === id);
+	if (item) Object.assign(item, patch);
 }
 
 function labelFromUrl(raw: string): string {

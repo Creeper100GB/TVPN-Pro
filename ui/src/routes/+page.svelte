@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import {
 		Activity,
 		ChevronDown,
@@ -13,6 +14,7 @@
 		Zap
 	} from 'lucide-svelte';
 	import { countryName } from '../lib/countries';
+	import { watchDownloads } from '../lib/backend';
 	import { isDesktop, windowAction } from '../lib/desktop';
 	import {
 		activeDownloadCount,
@@ -21,6 +23,7 @@
 		enable,
 		jumpTo,
 		panic,
+		patchDownload,
 		quarantinedDownloadCount,
 		recover,
 		showToast
@@ -71,6 +74,54 @@
 					? 'Schutz ausschalten'
 					: meta.action
 	);
+
+	onMount(() => {
+		let disposed = false;
+		let stop: (() => void) | undefined;
+
+		void (async () => {
+			try {
+				const unsubscribe = await watchDownloads({
+					progress: (event) => {
+						const percent = event.total
+							? Math.min(99, Math.round((event.received / event.total) * 100))
+							: 50;
+						patchDownload(event.id, { phase: 'active', progress: percent });
+					},
+					done: (event) => {
+						patchDownload(event.id, {
+							phase: 'done',
+							progress: 100,
+							verdict:
+								event.verdict === 'clean'
+									? 'clean'
+									: event.verdict === 'threat'
+										? 'threat'
+										: 'unknown'
+						});
+						showToast(
+							event.verdict === 'clean'
+								? 'Download fertig, Scan sauber.'
+								: 'Download fertig. Urteil prüfen.'
+						);
+					},
+					error: (event) => {
+						console.error('download-error', event.code);
+						patchDownload(event.id, { phase: 'error' });
+					}
+				});
+				if (disposed) unsubscribe();
+				else stop = unsubscribe;
+			} catch {
+				// Browser preview or missing permission: mock mode stays usable.
+			}
+		})();
+
+		return () => {
+			disposed = true;
+			stop?.();
+		};
+	});
 
 	function primary() {
 		switch (app.state) {

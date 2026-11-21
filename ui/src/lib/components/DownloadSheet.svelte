@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { Download, Trash2, X } from 'lucide-svelte';
-	import { addDownload, app, clearDownloads, removeDownload } from '../mock.svelte';
+	import { explainDownloadError, startDownload, cancelDownload } from '../backend';
+	import { isDesktop } from '../desktop';
+	import {
+		addDownload,
+		app,
+		clearDownloads,
+		parseDownloadInput,
+		patchDownload,
+		removeDownload,
+		trackDownload
+	} from '../mock.svelte';
 	import type { DownloadPhase, DownloadRoute, ScanVerdict } from '../types';
 	import Segmented from './Segmented.svelte';
 	import Sheet from './Sheet.svelte';
@@ -11,14 +21,25 @@
 
 	const routeOptions = [
 		{ value: 'tor' as DownloadRoute, label: 'Über Tor' },
+		{ value: 'direct' as DownloadRoute, label: 'Direkt' },
 		{ value: 'vpn' as DownloadRoute, label: 'Über VPN' }
 	];
+
+	const routeWarning = $derived(
+		route === 'direct'
+			? 'Ungeschützt: der Server sieht deine echte IP. Nur für Images mit Prüfsumme.'
+			: route === 'vpn'
+				? 'Braucht den Dienst. Torrents laufen erst mit der VPN-Schicht.'
+				: 'Braucht einen Tor-Proxy auf 127.0.0.1:9150.'
+	);
 
 	const verdictLabel: Record<ScanVerdict, string> = {
 		clean: 'Sauber',
 		warned: 'Warnung',
 		quarantined: 'Quarantäne',
-		failed: 'Fehlgeschlagen'
+		failed: 'Fehlgeschlagen',
+		threat: 'Fund',
+		unknown: 'Unklar'
 	};
 
 	const phaseLabel: Record<DownloadPhase, string> = {
@@ -29,8 +50,37 @@
 		error: 'Fehler'
 	};
 
-	function submit() {
-		const result = addDownload(url.trim(), route);
+	async function submit() {
+		const value = url.trim();
+		const parsed = parseDownloadInput(value, route);
+		if (!parsed.ok) {
+			error = parsed.error;
+			return;
+		}
+
+		if (isDesktop) {
+			const id = crypto.randomUUID().slice(0, 8);
+			trackDownload({
+				id,
+				label: parsed.label,
+				phase: 'queued',
+				progress: 0,
+				verdict: null,
+				route,
+				source: parsed.source
+			});
+			try {
+				await startDownload({ id, url: value, route });
+				url = '';
+				error = null;
+			} catch (cause) {
+				patchDownload(id, { phase: 'error' });
+				error = explainDownloadError(String(cause));
+			}
+			return;
+		}
+
+		const result = addDownload(value, route);
 		if (!result.ok) {
 			error = result.error;
 			return;
@@ -53,8 +103,8 @@
 			onchange={(value) => (route = value)}
 			size="sm"
 		/>
-		{#if route === 'vpn'}
-			<span class="route-warning">Peers sehen deine VPN-IP. Kein Tor-Schutz.</span>
+		{#if route !== 'tor'}
+			<span class="route-warning">{routeWarning}</span>
 		{/if}
 	</div>
 
@@ -62,7 +112,7 @@
 		class="add"
 		onsubmit={(event) => {
 			event.preventDefault();
-			submit();
+			void submit();
 		}}
 	>
 		<input
@@ -92,7 +142,7 @@
 					<div class="row">
 						<span class="name" title={item.label}>{item.label}</span>
 						<span class="route" data-route={item.route}>
-							{item.route === 'vpn' ? 'VPN' : 'Tor'}
+							{item.route === 'vpn' ? 'VPN' : item.route === 'direct' ? 'Direkt' : 'Tor'}
 						</span>
 						{#if item.verdict}
 							<span class="verdict" data-verdict={item.verdict}>{verdictLabel[item.verdict]}</span>
@@ -103,7 +153,10 @@
 							type="button"
 							class="remove"
 							aria-label="{item.label} entfernen"
-							onclick={() => removeDownload(item.id)}
+							onclick={() => {
+								if (isDesktop) void cancelDownload(item.id);
+								removeDownload(item.id);
+							}}
 						>
 							<X size={14} />
 						</button>
@@ -279,6 +332,16 @@
 	.verdict[data-verdict='failed'] {
 		color: var(--danger);
 		background: color-mix(in oklab, var(--danger) 12%, transparent);
+	}
+
+	.verdict[data-verdict='threat'] {
+		color: var(--danger);
+		background: color-mix(in oklab, var(--danger) 18%, transparent);
+	}
+
+	.verdict[data-verdict='unknown'] {
+		color: var(--muted);
+		background: color-mix(in oklab, var(--ink) 8%, transparent);
 	}
 
 	.remove {

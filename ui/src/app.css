@@ -141,3 +141,8 @@ html.desktop body::before {
 html.desktop .window {
 	backdrop-filter: none;
 }
+
+/* Maximised and fullscreen windows have no visible desktop corner. */
+html.window-full .window {
+	border-radius: 0;
+}

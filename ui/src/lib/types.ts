@@ -28,11 +28,17 @@ export type BlockFallback = 'off' | 'suggest' | 'auto';
 export type MacMode = 'random' | 'original';
 export type TorrentMode = 'blocked' | 'vpn_only';
 
-export type DownloadRoute = 'tor' | 'vpn';
+export type DownloadRoute = 'tor' | 'direct' | 'vpn';
 export type DownloadSource = 'https' | 'torrent';
 
 export type DownloadPhase = 'queued' | 'active' | 'paused' | 'done' | 'error';
-export type ScanVerdict = 'clean' | 'warned' | 'quarantined' | 'failed';
+export type ScanVerdict =
+	| 'clean'
+	| 'warned'
+	| 'quarantined'
+	| 'failed'
+	| 'threat'
+	| 'unknown';
 
 export interface DownloadItem {
 	id: string;

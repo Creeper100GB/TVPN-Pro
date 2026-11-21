@@ -100,7 +100,9 @@ test('bulk route: enable VPN torrents, add a magnet, clear the list', async ({ p
 	await page.getByRole('button', { name: 'Downloads öffnen' }).click();
 	const downloads = page.getByRole('dialog', { name: 'Downloads' });
 	await downloads.getByRole('button', { name: 'Über VPN' }).click();
-	await expect(downloads.getByText('Peers sehen deine VPN-IP. Kein Tor-Schutz.')).toBeVisible();
+	await expect(
+		downloads.getByText('Braucht den Dienst. Torrents laufen erst mit der VPN-Schicht.')
+	).toBeVisible();
 
 	await downloads
 		.getByLabel('Download-URL')

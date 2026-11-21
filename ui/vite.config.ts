@@ -20,5 +20,13 @@ export default defineConfig({
 	server: {
 		port: 5173,
 		strictPort: true
+	},
+	optimizeDeps: {
+		// Pre-bundle the Tauri modules so dev never reloads mid-test.
+		include: [
+			'@tauri-apps/api/core',
+			'@tauri-apps/api/event',
+			'@tauri-apps/api/window'
+		]
 	}
 });
