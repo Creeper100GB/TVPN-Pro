@@ -16,8 +16,9 @@ Ein Klick soll später: Firewall scharf, MAC wechseln, VPN verbinden, Tor starte
 | Download-Liste | Fortschritt, Urteile, Route, Aufräumen |
 | Torrent-Vertrag | Nur über VPN erlaubt, Standard blockiert; die VPN-Route braucht den Dienst, der noch fehlt |
 | Service-Kern | Zustandsautomat, Settings-Whitelist, URL-/Magnet-Regeln, IPC-Envelope, Redaktions-Scanner, 48 Tests |
-| Tests | `just verify`, 4 Playwright-E2E-Tests, 4 Tauri-Tests |
-| Defender-Scan | Wird versucht; läuft Defender nicht, lautet das Urteil ehrlich „Unklar" |
+| Tests | `just verify`, 5 Playwright-E2E-Tests, 4 Tauri-Tests |
+| macOS-Build | Unsignierte, ad-hoc signierte `.app` aus der CI; kein Schutz, keine Notarisierung |
+| Defender-Scan | Wird versucht; läuft Defender nicht, lautet das Urteil ehrlich „Unklar" (Windows) |
 
 ## Was ausdrücklich fehlt
 
@@ -26,7 +27,7 @@ Ein Klick soll später: Firewall scharf, MAC wechseln, VPN verbinden, Tor starte
 - **MAC-Wechsel**, Hostname, Portal-Erkennung.
 - **Tor Browser** starten und prüfen, **aria2**, Scanner-Pipeline mit EICAR, MOTW, Quarantäne.
 - **Wächter**, Notfall-Reset, Installer mit Signierung, USB-Kit.
-- **macOS**.
+- **macOS-Schutzfunktionen** (Firewall, VPN, MAC). Ein unsignierter Build-Check läuft in der CI, signiert und notarisiert ist nichts.
 - Spikes S1 bis S6 und die Leak-Matrix in der VM.
 
 Kurz: Das Gerüst steht, der Schutz fehlt. Wer die App als „anonym" verkauft, lügt.
