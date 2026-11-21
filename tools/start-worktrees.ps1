@@ -19,6 +19,9 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
+
+# powershell -File passes "-Roles a,b" as one string; split it here.
+$Roles = @($Roles | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $valid = @('net-core', 'privacy-shield', 'launcher', 'scanner', 'watchdog', 'ui-shell', 'qa-security')
 
 if ($Roles.Count -gt 4) { throw 'Maximal 4 Rollen gleichzeitig (PLAN.md Abschnitt 10).' }

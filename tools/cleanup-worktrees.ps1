@@ -14,6 +14,9 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
+# powershell -File passes "-Roles a,b" as one string; split it here.
+$Roles = @($Roles | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
 foreach ($role in $Roles) {
   $dir = Join-Path $WorktreeRoot $role
   if (-not (Test-Path $dir)) { Write-Host "Nicht vorhanden: $dir"; continue }
