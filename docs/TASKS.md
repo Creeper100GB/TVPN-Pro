@@ -26,7 +26,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 |---|---|---|---|---|
 | S1 | net-core | WFP-Filter neben Mullvad-Lockdown | Entscheidung in DECISIONS.md | offen |
 | S2 | launcher | Tor Browser am System-Tor | Entscheidung in DECISIONS.md | offen |
-| S3 | privacy-shield | Hostname ohne Neustart | Entscheidung in DECISIONS.md | offen |
+| S3 | privacy-shield | Hostname ohne Neustart | Entscheidung in DECISIONS.md | entschieden: `REBOOT_REQUIRED` (VM 22.11.2026) |
 | S4 | launcher, scanner | aria2/FDM über Tor, Scanner-Engines | Entscheidung in DECISIONS.md | offen |
 | S5 | launcher | Block-Titel, URL auslesen, Fallback-Browser | Entscheidung in DECISIONS.md | offen |
 | S6 | net-core | Captive Portal unter Default-Deny | Entscheidung in DECISIONS.md | offen |
@@ -36,7 +36,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 |---|---|---|---|---|
 | P2-01 | orchestrator | Zustandsautomat und IPC-Server | Zustandsübergänge laut Vertrag, Unit-Tests | läuft |
 | P2-02 | orchestrator | Logging mit Redaktions-Gate | Gate-Test in CI grün | läuft |
-| P2-03 | net-core | WFP-Layer (arm, permit_app, verify, disarm) | Allowlist-Tests in der VM grün | offen |
+| P2-03 | net-core | WFP-Layer (arm, permit_app, verify, disarm) | Allowlist-Tests in der VM grün | läuft: Default-Deny + Loopback in VM grün (armed=8, disarmed=0), Allowlist offen |
 | P2-04 | net-core | Tor-Controller | Bootstrap und Circuit-Status zuverlässig | läuft: Control-Client + 2 Mock-Tests, tor.exe in der VM offen |
 | P2-05 | net-core | VPN-Controller (Mullvad) | Verbinden, Land, Status, Fehlerfälle | läuft: CLI-Wrapper + 5 Parser-Tests, App in der VM offen |
 | P2-06 | net-core | `tvpn-recover.exe` | Entfernt nur eigene Filter, läuft ohne Dienst | offen |

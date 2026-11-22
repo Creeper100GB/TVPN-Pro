@@ -17,6 +17,7 @@ Jeder Spike: Zeitbox, Test nur in der VM, Ergebnis als Eintrag in `docs/DECISION
 - **Frage:** Gibt es einen Weg, den im Netz sichtbaren Rechnernamen (DHCP, NetBIOS, mDNS) pro Sitzung ohne Neustart zu ändern?
 - **Erfolg:** Wechsel sichtbar im Netz (DHCP-Lease prüfen) ohne Neustart.
 - **Plan A:** Einmaliges Neutralisieren im Setup (ein Neustart), pro Sitzung nur die MAC, UI-Hinweis.
+- **Ergebnis (22.11.2026, VM `tvpn-test`):** `Rename-Computer` meldet Erfolg, aber `hostname`, NetBIOS und der DHCP-Hostname bleiben bis zum Neustart alt. Ergebnis `REBOOT_REQUIRED`. Bericht: `docs/reports/spike-s3.md`.
 
 ## S4: Downloader und Scanner-Engines (launcher, scanner)
 - **Fragen:** (1) aria2 über den Tor-HTTP-CONNECT-Port, Resume nach Tor-Neustart. (2) Kann FDM über Proxy, ist Torrent aus? (3) ClamAV: RAM und Startzeit mit `clamd` und mit `clamscan`. (4) Defender-CLI vorhanden oder durch Dritt-AV ersetzt?

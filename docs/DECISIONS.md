@@ -11,7 +11,7 @@ Neue Einträge hängt nur der Orchestrator an. Status: `Vorschlag` oder `Abgenom
 | D5 | aria2 als Standard-Downloader, FDM als Adapter | Open Source, per RPC steuerbar, Proxy per HTTP-CONNECT | S4 zeigt Probleme | Vorschlag |
 | D6 | Mullvad Browser als Fallback-Browser | Für VPN-Nutzung gebaut, gleiche Fingerprint-Schutz-Basis | S5 zeigt Probleme | Vorschlag |
 | D7 | Scanner orchestriert Defender und ClamAV, kein eigener Engine-Bau | Ehrlicher und wartbar | Defender nicht verfügbar | Vorschlag |
-| D8 | Hostname einmalig neutralisieren (Plan A) | Neustart pro Sitzung unpraktisch | S3 findet Weg ohne Neustart | Vorschlag |
+| D8 | Hostname einmalig neutralisieren (Plan A) | Neustart pro Sitzung unpraktisch | S3 findet Weg ohne Neustart | Abgenommen (S3, 22.11.2026: Neustart nötig) |
 | D9 | Block-Erkennung per Fenstertitel, kein Add-on, kein WebDriver | Fingerprint bleibt unverändert | S5 findet bessere Methode | Vorschlag |
 | D10 | Logging: Dev-Logs ohne sensible Daten, Release aus | Debugbar ohne Spuren | Datenschutzprobleme in Tests | Vorschlag |
 | D11 | Dienstkonto: so wenig Rechte wie möglich (offen, LocalSystem oder eigenes Konto) | Angriffsfläche | Technisch nicht machbar | Offen, Orchestrator klärt in Phase 1 |
