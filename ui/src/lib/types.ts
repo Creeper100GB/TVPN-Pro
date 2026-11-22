@@ -22,7 +22,8 @@ export type BannerKind =
 	| 'hostname_unchanged'
 	| 'vpn_route'
 	| 'no_filter'
-	| 'tor_only';
+	| 'tor_only'
+	| 'service_unavailable';
 
 export type WatchdogLevel = 'ok' | 'warn' | 'critical';
 

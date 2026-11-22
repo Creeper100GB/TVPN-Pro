@@ -24,6 +24,7 @@ interface AppStore {
 	circuit: boolean;
 	macRandomized: boolean;
 	firewallArmed: boolean;
+	serviceReachable: boolean;
 	watchdog: WatchdogLevel;
 	banners: BannerKind[];
 	downloads: DownloadItem[];
@@ -58,6 +59,7 @@ export const app = $state<AppStore>({
 	circuit: false,
 	macRandomized: false,
 	firewallArmed: false,
+	serviceReachable: true,
 	watchdog: 'ok',
 	banners: [],
 	downloads: [],
@@ -123,10 +125,18 @@ function applyServiceStatus(data: Record<string, unknown>) {
 	if (state !== 'FAILCLOSED') app.failureCode = null;
 }
 
+function markServiceLost() {
+	app.serviceReachable = false;
+	if (!app.banners.includes('service_unavailable')) {
+		app.banners = [...app.banners, 'service_unavailable'];
+	}
+}
+
 /** Pulls one status snapshot and the settings on first contact. */
 export async function refreshService(): Promise<void> {
 	if (!isDesktop) return;
 	const data = await serviceStatus();
+	app.serviceReachable = true;
 	applyServiceStatus(data);
 	if (!settingsLoaded) {
 		const settings = await serviceCommand('get_settings');
@@ -143,7 +153,12 @@ function startPolling() {
 		try {
 			await refreshService();
 		} catch {
-			// Service not installed or not running. The UI stays honest: OFF.
+			// A lost service is not OFF. The filters may still be armed, and the
+			// UI must not keep claiming "protected" or "off" without evidence.
+			app.serviceReachable = false;
+			if (!app.banners.includes('service_unavailable')) {
+				app.banners = [...app.banners, 'service_unavailable'];
+			}
 		} finally {
 			pollBusy = false;
 		}
@@ -186,6 +201,7 @@ export function explainFailure(code: string): string {
 		E_PREFLIGHT_NO_ADMIN: 'Der Dienst hat nicht die nötigen Rechte. Ist er installiert und gestartet?',
 		E_FIREWALL_ARM_FAILED: 'Die Firewall konnte nicht gesetzt werden. Das Netz bleibt gesperrt.',
 		E_FIREWALL_VERIFY_MISMATCH: 'Der Filtersatz ist unvollständig. Notfall-Reset starten.',
+		E_SETTINGS_PERSIST: 'Die Einstellung wurde nicht gespeichert. Prüfe die Rechte von %ProgramData%\\TVPN.',
 		E_TOR_BOOTSTRAP_TIMEOUT: 'Tor erreicht keinen Circuit. Netzwerk und Tor-Dateien prüfen.',
 		E_TOR_CONTROL_AUTH: 'Tor-Control-Authentisierung fehlgeschlagen. Tor neu starten.',
 		E_TOR_CIRCUIT_FAILED: 'Tor hat keinen Circuit. Netzwerk prüfen.',
@@ -405,7 +421,7 @@ export async function enable() {
 			await refreshService();
 			const reached = app.state as AppState;
 			if (reached === 'READY') {
-				showToast('Schutz steht. Nur Tor und Freigaben kommen raus.');
+				showToast('Tor läuft. Die VPN-Kette ist nicht unabhängig geprüft.');
 			} else if (reached === 'DEGRADED') {
 				showToast(
 					app.settings.vpnEnabled
@@ -421,8 +437,9 @@ export async function enable() {
 				code === 'service_task' ||
 				code === 'service_lock'
 			) {
-				setState('OFF', 0);
-				showToast('Der Dienst ist nicht erreichbar. Es ist nichts aktiv.');
+				markServiceLost();
+				setState('FAILCLOSED', 100);
+				showToast('Der Dienst ist nicht erreichbar. Der Firewall-Status ist unbekannt.');
 			} else {
 				app.banners = [...app.banners.filter((b) => b !== 'failclosed'), 'failclosed'];
 				setState('FAILCLOSED', 100);
@@ -465,7 +482,7 @@ export async function enable() {
 	if (my !== generation) return;
 
 	setState('READY', 100);
-	showToast('Schutz steht. Nur Tor und Freigaben kommen raus.');
+	showToast('Tor läuft. Die VPN-Kette ist nicht unabhängig geprüft.');
 }
 
 export async function disable() {
@@ -482,7 +499,7 @@ export async function disable() {
 			app.lastSummary = {
 				startedAt: app.since,
 				endedAt: Date.now(),
-				stateReached: (serviceSummary.state_reached as AppState) ?? 'READY',
+				stateReached: (serviceSummary.state_reached as AppState) ?? 'OFF',
 				clean: counts.clean,
 				warned: counts.warned,
 				quarantined: counts.quarantined,
@@ -497,6 +514,7 @@ export async function disable() {
 			showToast('Schutz beendet.');
 		} catch (cause) {
 			app.failureCode = String(cause);
+			if (String(cause) === 'service_unavailable') markServiceLost();
 			setState('FAILCLOSED', 100);
 			await refreshService().catch(() => {});
 		}
@@ -547,9 +565,10 @@ export async function panic() {
 		try {
 			await serviceCommand('panic');
 			await refreshService();
-			showToast('Panik: Netz getrennt.');
+			showToast('Panik: Schutz beendet, Netz wieder offen.');
 		} catch (cause) {
 			app.failureCode = String(cause);
+			if (String(cause) === 'service_unavailable') markServiceLost();
 			setState('FAILCLOSED', 100);
 		}
 		return;
@@ -560,7 +579,7 @@ export async function panic() {
 	removeBanner('fallback_active');
 	setState('TEARDOWN', 55);
 	app.downloads = [];
-	showToast('Panik: Apps geschlossen, Netz getrennt.');
+	showToast('Panik: Schutz beendet, Netz offen.');
 	await sleep(550);
 	if (my !== generation) return;
 	app.firewallArmed = false;
@@ -581,6 +600,7 @@ export async function recover() {
 			showToast('Netz wiederhergestellt. Es ist kein Filter mehr aktiv.');
 		} catch (cause) {
 			app.failureCode = String(cause);
+			if (String(cause) === 'service_unavailable') markServiceLost();
 			setState('FAILCLOSED', 100);
 		}
 		return;

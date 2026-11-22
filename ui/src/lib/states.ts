@@ -25,7 +25,7 @@ export const STATE_META: Record<AppState, StateMeta> = {
 	},
 	ARMING: {
 		label: 'Firewall scharf',
-		hint: 'Blocke alles außer VPN und Tor. Die MAC wird gewechselt.',
+		hint: 'Blocke alles außer Tor und Freigaben. Die MAC bleibt unverändert.',
 		tone: 'busy',
 		action: 'Läuft …',
 		progress: 24
@@ -39,7 +39,7 @@ export const STATE_META: Record<AppState, StateMeta> = {
 	},
 	VPN_UP: {
 		label: 'VPN verbunden',
-		hint: 'Tor startet und darf nur über den VPN-Adapter ins Netz.',
+		hint: 'Tor startet. Die Bindung an den VPN-Adapter ist noch ungeprüft.',
 		tone: 'busy',
 		action: 'Läuft …',
 		progress: 55
@@ -52,15 +52,15 @@ export const STATE_META: Record<AppState, StateMeta> = {
 		progress: 78
 	},
 	READY: {
-		label: 'Geschützt',
-		hint: 'Nur Tor und freigegebene Apps kommen raus. Alles andere ist blockiert.',
+		label: 'Tor aktiv',
+		hint: 'Firewall und Tor laufen. Die VPN-Kette ist ungeprüft; keine Anonymitätsgarantie.',
 		tone: 'ok',
 		action: 'Ausschalten',
 		progress: 100
 	},
 	DEGRADED: {
 		label: 'Eingeschränkt',
-		hint: 'Eine Komponente wird neu gestartet. Das Netz bleibt gesperrt.',
+		hint: 'Tor läuft ohne verifizierte VPN-Kette. Der ISP sieht Tor-Traffic.',
 		tone: 'warn',
 		action: 'Ausschalten',
 		progress: 88
@@ -74,7 +74,7 @@ export const STATE_META: Record<AppState, StateMeta> = {
 	},
 	TEARDOWN: {
 		label: 'Wird beendet',
-		hint: 'Apps schließen, Tunnel trennen, Spuren aufräumen.',
+		hint: 'Tor und VPN trennen, Firewall entfernen. Es werden keine Spuren gelöscht.',
 		tone: 'busy',
 		action: 'Läuft …',
 		progress: 40

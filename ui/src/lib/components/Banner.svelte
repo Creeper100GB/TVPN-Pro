@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Activity, Fingerprint, Globe, Monitor, Network, ShieldAlert, Wifi } from 'lucide-svelte';
+	import { Activity, Fingerprint, Globe, Monitor, Network, ShieldAlert, Wifi, WifiOff } from 'lucide-svelte';
 	import type { BannerKind } from '../types';
 
 	let { kind }: { kind: BannerKind } = $props();
@@ -55,6 +55,11 @@
 			icon: Globe,
 			tone: 'warn',
 			text: 'Tor-only: Die VPN-Kette ist aus. Der ISP sieht Tor-Traffic, Ziele sehen die Tor-Exit-IP.'
+		},
+		service_unavailable: {
+			icon: WifiOff,
+			tone: 'danger',
+			text: 'Der Dienst ist nicht erreichbar. Der Firewall-Status ist unbekannt. Starte den Dienst neu oder nutze den Notfall-Reset.'
 		}
 	};
 

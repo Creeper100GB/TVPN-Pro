@@ -68,7 +68,7 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">VPN</p>
-				<p class="desc">Ohne VPN startet Tor nicht. Eine Quelle der Wahrheit pro Regel.</p>
+				<p class="desc">VPN ist optional. Ohne VPN läuft Tor direkt; der ISP sieht Tor-Traffic.</p>
 			</div>
 			<Toggle
 				checked={app.settings.vpnEnabled}
@@ -115,7 +115,7 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">Firewall-Allowlist</p>
-				<p class="desc">Nicht verhandelbar: alles außer Tor und Freigaben ist zu.</p>
+				<p class="desc">Blockt ausgehenden Verkehr außer Tor, VPN und Loopback. Loopback ist derzeit global erlaubt.</p>
 			</div>
 			<span class="badge">Immer an</span>
 		</div>
@@ -123,7 +123,7 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">MAC-Adresse</p>
-				<p class="desc">„Original“ ist fürs Heimnetz mit MAC-Filter oder DHCP-Reservierung.</p>
+				<p class="desc">Der Hyper-V-Adapter unterstützt keinen Write; auf physischer Hardware ungeprüft.</p>
 			</div>
 			<Segmented
 				label="MAC-Modus"
@@ -136,15 +136,15 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">Hostname</p>
-				<p class="desc">Einmalig neutral im Setup. Ein Wechsel pro Sitzung braucht einen Neustart.</p>
+				<p class="desc">Wird derzeit nicht geändert. Windows braucht dafür einen Neustart.</p>
 			</div>
-			<span class="badge">Neutral</span>
+			<span class="badge">Unverändert</span>
 		</div>
 
 		<div class="item">
 			<div class="text">
 				<p class="title">Portal-Zeitfenster</p>
-				<p class="desc">So lange darf der VPN-Browser für die Portal-Seite ins Netz.</p>
+				<p class="desc">Nicht implementiert. Der Wert wird gespeichert, aber nicht verwendet.</p>
 			</div>
 			<div class="slider">
 				<input
@@ -174,7 +174,7 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">Block-Fallback</p>
-				<p class="desc">Öffnet blockierte Seiten im VPN-Browser – mit Warnung, nie still.</p>
+				<p class="desc">Nicht implementiert. Der Wert wird gespeichert, aber nicht verwendet.</p>
 			</div>
 			<Segmented
 				label="Block-Fallback"
@@ -188,7 +188,7 @@
 			<div class="text">
 				<p class="title">Torrents</p>
 				<p class="desc">
-					Nur über VPN, nie über Tor. Peers sehen dann deine VPN-IP, der Anbieter den Traffic.
+					Nicht implementiert. Torrents werden derzeit nicht unterstützt.
 				</p>
 			</div>
 			<Segmented
@@ -202,7 +202,7 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">Hash-Abfrage</p>
-				<p class="desc">Optional: nur der SHA-256 geht über Tor an einen Online-Scanner.</p>
+				<p class="desc">Nicht implementiert. Es werden keine Hashes an Dritte gesendet.</p>
 			</div>
 			<Toggle
 				checked={app.settings.scannerHashLookup}
@@ -236,12 +236,12 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">Panik-Taste</p>
-				<p class="desc">Schließt Apps, kappt das Netz, baut ab. Auch bei Fehlern.</p>
+				<p class="desc">Beendet Tor und VPN, entfernt die Firewall. Das Netz ist danach offen.</p>
 			</div>
-			<span class="badge">Strg + Shift + P</span>
+			<span class="badge">Strg + Alt + Shift + F12</span>
 		</div>
 
-		<button type="button" class="danger-button" onclick={panic}>Jetzt sperren</button>
+		<button type="button" class="danger-button" onclick={panic}>Sofort beenden</button>
 	</section>
 
 	<section>

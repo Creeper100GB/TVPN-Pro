@@ -24,6 +24,7 @@
 		patchDownload,
 		quarantinedDownloadCount,
 		recover,
+		refreshService,
 		showToast
 	} from '../lib/mock.svelte';
 	import { STATE_META, TONE_VAR, isArmed, isTransient } from '../lib/states';
@@ -36,21 +37,30 @@
 	import { APP_VERSION } from '../lib/version';
 
 	const meta = $derived(STATE_META[app.state]);
+	const serviceDown = $derived(!app.serviceReachable && app.state !== 'OFF');
 	const noFilter = $derived(app.state === 'FAILCLOSED' && !app.firewallArmed);
 	const torOnly = $derived(app.state === 'DEGRADED' && !app.settings.vpnEnabled);
 	const stateLabel = $derived(
-		noFilter ? 'Vorprüfung fehlgeschlagen' : torOnly ? 'Tor-only' : meta.label
+		serviceDown
+			? 'Dienst nicht erreichbar'
+			: noFilter
+				? 'Vorprüfung fehlgeschlagen'
+				: torOnly
+					? 'Tor-only'
+					: meta.label
 	);
 	const stateHint = $derived(
-		noFilter
-			? 'Es ist kein Filter aktiv. Das Netz ist offen. Prüfe Tor, Mullvad und die Einstellungen.'
-			: torOnly
-				? 'Tor läuft, die VPN-Kette ist aus. Der ISP sieht Tor-Traffic; Ziele sehen die Tor-Exit-IP.'
-				: meta.hint
+		serviceDown
+			? 'Der Firewall-Status ist unbekannt. Starte den Dienst neu oder nutze den Notfall-Reset.'
+			: noFilter
+				? 'Es ist kein Filter aktiv. Das Netz ist offen. Prüfe Tor, Mullvad und die Einstellungen.'
+				: torOnly
+					? 'Tor läuft, die VPN-Kette ist aus. Der ISP sieht Tor-Traffic; Ziele sehen die Tor-Exit-IP.'
+					: meta.hint
 	);
 	const busy = $derived(isTransient(app.state));
-	const tone = $derived(meta.tone);
-	const primaryDisabled = $derived(busy && app.state !== 'RECOVERY');
+	const tone = $derived(serviceDown ? 'danger' : meta.tone);
+	const primaryDisabled = $derived(!serviceDown && busy && app.state !== 'RECOVERY');
 
 	const startLabel = $derived(
 		new Date(app.since).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
@@ -66,23 +76,29 @@
 	);
 	const torTone = $derived(app.circuit ? 'ok' : app.torBootstrap > 0 ? 'warn' : 'neutral');
 
-	const firewallValue = $derived(app.firewallArmed ? 'Allowlist aktiv' : 'Aus');
-	const firewallTone = $derived(app.firewallArmed ? 'ok' : app.state === 'FAILCLOSED' ? 'danger' : 'neutral');
+	const firewallValue = $derived(
+		serviceDown ? 'Unbekannt' : app.firewallArmed ? 'Allowlist aktiv' : 'Aus'
+	);
+	const firewallTone = $derived(
+		serviceDown ? 'danger' : app.firewallArmed ? 'ok' : app.state === 'FAILCLOSED' ? 'danger' : 'neutral'
+	);
 
 	const watchdogValue = $derived(
 		app.watchdog === 'ok' ? 'OK' : app.watchdog === 'warn' ? 'Warnung' : 'Kritisch'
 	);
 
 	const powerLabel = $derived(
-		app.state === 'OFF'
-			? 'Schutz einschalten'
-			: app.state === 'FAILCLOSED'
-				? 'Notfall-Reset starten'
-				: app.state === 'RECOVERY'
+		serviceDown
+			? 'Status prüfen'
+			: app.state === 'OFF'
+				? 'Schutz einschalten'
+				: app.state === 'FAILCLOSED'
 					? 'Notfall-Reset starten'
-					: app.state === 'READY' || app.state === 'DEGRADED'
-						? 'Schutz ausschalten'
-						: meta.action
+					: app.state === 'RECOVERY'
+						? 'Notfall-Reset starten'
+						: app.state === 'READY' || app.state === 'DEGRADED'
+							? 'Schutz ausschalten'
+							: meta.action
 	);
 
 	onMount(() => {
@@ -145,6 +161,12 @@
 	});
 
 	function primary() {
+		if (serviceDown) {
+			void refreshService()
+				.then(() => showToast('Dienst wieder erreichbar.'))
+				.catch(() => showToast('Dienst weiterhin nicht erreichbar.'));
+			return;
+		}
 		switch (app.state) {
 			case 'OFF':
 				void enable();
