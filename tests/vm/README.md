@@ -30,7 +30,7 @@ Mit einem Windows-11-ISO legt dieses Skript die VM `tvpn-test` an, installiert W
 powershell -ExecutionPolicy Bypass -File tests\vm\create-vm.ps1 -IsoPath C:\Users\Jonah\VMs\Win11_Client_x64_en-us.iso
 ```
 
-Das Skript braucht eine Admin-Shell und Hyper-V. Es fasst nur die beiden VHDs unter `-VMPath` an und verweigert jeden Datenträger, der kein file-backed virtuelles Laufwerk ist. Das Standard-Passwort des Testkontos steht im Skript; es gilt nur für die wegwerfbare VM.
+Das Skript braucht eine Admin-Shell, Hyper-V und `oscdimg.exe` aus den Windows-ADK-Deployment-Tools (Default: `C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe`). Die Antwortdatei liegt auf einer zweiten DVD, damit Setup die OS-Platte als einzige Festplatte sieht. Das Skript fasst nur die Dateien unter `-VMPath` an und verweigert jeden Datenträger, der kein file-backed virtuelles Laufwerk ist. Das Standard-Passwort des Testkontos steht im Skript; es gilt nur für die wegwerfbare VM.
 
 ## Ersteinrichtung (manuell)
 

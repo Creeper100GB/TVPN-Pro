@@ -17,8 +17,8 @@
     Path to the Windows 11 x64 ISO.
 
 .PARAMETER Recreate
-    Remove an existing tvpn-test VM and its two VHDs first. Only the VM and the
-    files under VMPath with the VM name are removed.
+    Remove an existing tvpn-test VM, its OS VHD and its answer ISO first. Only
+    the VM and the files under VMPath with the VM name are removed.
 #>
 [CmdletBinding()]
 param(
@@ -32,6 +32,7 @@ param(
     [string]$SwitchName = 'Default Switch',
     [string]$AdminUser = 'tvpn',
     [string]$AdminPassword = 'TVPN-Test-2026!',
+    [string]$Oscdimg = 'C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe',
     [string]$CheckpointName = 'sauber',
     [int]$TimeoutMinutes = 60,
     [switch]$Recreate
@@ -47,6 +48,10 @@ if (-not (Get-VMSwitch -Name $SwitchName -ErrorAction SilentlyContinue)) {
     throw "Hyper-V switch not found: $SwitchName"
 }
 
+if (-not (Test-Path -LiteralPath $Oscdimg)) {
+    throw "oscdimg not found: $Oscdimg"
+}
+
 $existing = Get-VM -Name $VMName -ErrorAction SilentlyContinue
 if ($existing) {
     if (-not $Recreate) {
@@ -56,10 +61,14 @@ if ($existing) {
     Remove-VM -Name $VMName -Force
     Remove-Item -LiteralPath (Join-Path $VMPath "$VMName.vhdx") -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath (Join-Path $VMPath "$VMName-answer.vhdx") -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $VMPath "$VMName-answer.iso") -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $VMPath "$VMName-answer") -Recurse -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -LiteralPath $VMPath -Filter "$VMName*.avhdx" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
 New-Item -ItemType Directory -Path $VMPath -Force | Out-Null
-$answerVhd = Join-Path $VMPath "$VMName-answer.vhdx"
+$answerDir = Join-Path $VMPath "$VMName-answer"
+$answerIso = Join-Path $VMPath "$VMName-answer.iso"
 $osVhd = Join-Path $VMPath "$VMName.vhdx"
 
 $mounted = $null
@@ -88,25 +97,20 @@ try {
     Dismount-DiskImage -ImagePath $IsoPath | Out-Null
     $mounted = $null
 
-    Write-Host "==> Build answer VHD"
+    Write-Host "==> Build answer ISO"
     $template = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'autounattend.xml') -Raw
     $xml = $template.Replace('__PASSWORD__', $AdminPassword)
 
-    if (Test-Path -LiteralPath $answerVhd) {
-        Remove-Item -LiteralPath $answerVhd -Force
+    New-Item -ItemType Directory -Path $answerDir -Force | Out-Null
+    $answerXml = Join-Path $answerDir 'autounattend.xml'
+    Set-Content -LiteralPath $answerXml -Value $xml -Encoding UTF8
+    if (Test-Path -LiteralPath $answerIso) {
+        Remove-Item -LiteralPath $answerIso -Force
     }
-    New-VHD -Path $answerVhd -SizeBytes 64MB -Dynamic | Out-Null
-    $vd = Mount-VHD -Path $answerVhd -Passthru
-    $disk = Get-Disk -Number $vd.DiskNumber
-    if ($disk.IsSystem -or $disk.IsBoot -or $disk.BusType -ne 'File Backed Virtual') {
-        throw 'Refusing to modify a disk that is not a file-backed virtual disk.'
+    & $Oscdimg -m -o -u2 -lANSWER $answerDir $answerIso | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "oscdimg failed with exit code $LASTEXITCODE"
     }
-    Initialize-Disk -Number $disk.Number -PartitionStyle MBR -Confirm:$false
-    $partition = New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter
-    Format-Volume -Partition $partition -FileSystem FAT32 -NewFileSystemLabel 'ANSWER' -Confirm:$false | Out-Null
-    $answerFile = Join-Path "$($partition.DriveLetter):" 'autounattend.xml'
-    Set-Content -LiteralPath $answerFile -Value $xml -Encoding UTF8
-    Dismount-VHD -Path $answerVhd
 
     Write-Host "==> Create VM"
     New-VHD -Path $osVhd -SizeBytes 80GB -Dynamic | Out-Null
@@ -117,13 +121,31 @@ try {
     Set-VMKeyProtector -VMName $VMName -NewLocalKeyProtector
     Enable-VMTPM -VMName $VMName
     Add-VMDvdDrive -VMName $VMName -Path $IsoPath | Out-Null
-    Add-VMHardDiskDrive -VMName $VMName -Path $answerVhd | Out-Null
-    $dvd = Get-VMDvdDrive -VMName $VMName
+    Add-VMDvdDrive -VMName $VMName -Path $answerIso | Out-Null
+    $dvd = Get-VMDvdDrive -VMName $VMName | Where-Object { $_.Path -eq $IsoPath }
     $osDisk = Get-VMHardDiskDrive -VMName $VMName | Where-Object { $_.Path -eq $osVhd }
     Set-VMFirmware -VMName $VMName -BootOrder $dvd, $osDisk
 
     Write-Host "==> Start VM and wait for unattended install"
     Start-VM -Name $VMName
+    Start-Sleep -Seconds 1
+
+    # Windows Setup waits for a key on "Press any key to boot from CD or DVD".
+    $vmWmi = Get-CimInstance -Namespace root\virtualization\v2 -ClassName Msvm_ComputerSystem -Filter "ElementName='$VMName'"
+    $keyboard = $null
+    for ($attempt = 0; $attempt -lt 10 -and -not $keyboard; $attempt++) {
+        $keyboard = Get-CimInstance -Namespace root\virtualization\v2 -ClassName Msvm_Keyboard |
+            Where-Object { $_.SystemName -eq $vmWmi.Name } |
+            Select-Object -First 1
+        if (-not $keyboard) { Start-Sleep -Milliseconds 500 }
+    }
+    if ($keyboard) {
+        for ($press = 0; $press -lt 30; $press++) {
+            Invoke-CimMethod -InputObject $keyboard -MethodName TypeKey -Arguments @{ keyCode = [byte]0x20 } | Out-Null
+            Start-Sleep -Milliseconds 300
+        }
+    }
+
     $secure = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
     $credential = New-Object System.Management.Automation.PSCredential($AdminUser, $secure)
     $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
