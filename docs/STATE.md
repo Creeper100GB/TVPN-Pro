@@ -1,27 +1,29 @@
 # Projektstand (kompakt)
 
-Stand: 22. November 2026. Einstieg nach einer Kontext-Kompaktierung. Details stehen in `docs/reports/`, `docs/DECISIONS.md` und `docs/TASKS.md`.
+Stand: 22. November 2026. Details stehen in `docs/reports/`, `docs/DECISIONS.md` und `docs/TASKS.md`.
 
 ## Läuft und ist geprüft
 
 - **opencode 2.3.2**, acht Agenten mit V2-Frontmatter.
-- **Rust-Kern `service/core`**: Zustandsautomat nach Vertrag, Settings inklusive `torrent_mode`, URL- und Magnet-Regeln, IPC-Envelope, Redaktions-Scanner. 48 Tests, clippy sauber.
-- **UI** (Svelte 5, SvelteKit 3, Tailwind 4, Inter lokal): alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Tester-Infos in den Einstellungen, Download-Sheet mit Routen Tor/Direkt/VPN, Bulk-Route für Torrents, Hell/Dunkel. `svelte-check` 0/0.
-- **E2E** (Playwright): 5 Tests, UI-Ablauf, VPN-Bulk-Route, Ablehnung bei blockierten Torrents, echter Datei-Download mit Hash und Löschung, Tester-Infos in der Zwischenablage.
-- **Tauri-Shell**: echter Download im Rust-Teil (`reqwest`, Routen `direct` und `tor` über SOCKS 9150), SHA-256, Defender-Scan (Windows), Abbruch löscht die Datei. Maximierte und Fullscreen-Fenster ohne runde Ecken (verifiziert). Windows-Installer (NSIS) und portable EXE gebaut und gestartet.
-- **`service/net`**: Tor-Control-Client (Cookie-Auth, Bootstrap, Circuit, NEWNYM), Mullvad-CLI-Wrapper (Statusparser, feste Argumente, Länderprüfung) und WFP-Default-Deny mit Loopback-Freigabe. Host-Tests grün; WFP in der VM grün (`armed=8`, `disarmed=0`). tor.exe- und Mullvad-App-Integration bleiben VM-Arbeit.
-- **macOS-Build**: `macos.yml` baut auf `macos-latest` eine ad-hoc signierte `.app` (12,4 MiB) und legt sie als Artefakt ab. Nicht gestartet, nicht notarisiert, ohne Schutzfunktionen.
-- **VM-Runner**, **Canary-Dienst**, **CI-Definitionen**: geschrieben; CI läuft auf GitHub. Der VM-Runner ist seit 22.11. in `tvpn-test` geprüft (Checkpoint-Rollback, PowerShell Direct, Smoke-Test grün); Canary bleibt ungeprüft.
-- **Test-VM `tvpn-test`**: Windows 11 Enterprise Evaluation 22621, 4 vCPU, 4 GB RAM, Checkpoint `sauber`, lokale Admins `User` und `tvpn`. WFP-Default-Deny grün (`armed=8`, `disarmed=0`); S3 ergibt `REBOOT_REQUIRED`.
+- **Rust-Kern `service/core`**: Zustandsautomat nach Vertrag, Settings inklusive `torrent_mode`, URL- und Magnet-Regeln, IPC-Envelope, Redaktions-Scanner.
+- **UI** (Svelte 5, SvelteKit 3, Tailwind 4, Inter lokal): alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Download-Sheet mit Routen Tor/Direkt/VPN. Die Desktop-App liest Status und Einstellungen jetzt über den echten Dienst und pollt alle 2,5 Sekunden.
+- **Tauri-Shell**: echter Download (`reqwest`, Routen `direct` und `tor` über SOCKS 9150), SHA-256, Defender-Scan, Mark-of-the-Web, Quarantäne bei Fund, Abbruch löscht die Datei. Die Oberfläche redet über `service_status` und `service_command` mit `tvpnd`.
+- **`service/net`**: Tor-Control-Client, Mullvad-CLI-Wrapper und WFP-Default-Deny mit Loopback- und Programm-Freigaben. In der VM: 8 Block-/Loopback-Filter plus 4 Tor-Permits, `firewall_filters=12`, danach `0`.
+- **`tvpnd`**: Protokoll (`hello`, `get_status`, `get_settings`, `set_settings`, `enable`, `disable`, `panic`, `recover`), Named Pipe mit Token/ACL, Dienst-Wrapper mit `--install`/`--uninstall`, echter Backend-Ablauf (WFP, VPN, Tor, Fail-Closed) und Session-Zusammenfassung. In der VM geprüft: Installation als Dienst, Pipe als Besitzer, Enable mit echtem `tor.exe`, Panik trennt das Netz wieder.
+- **`service/privacy`**, **`service/launcher`**, **`service/scanner`**, **`service/watchdog`**: MAC- und Hostname-Primitive (S3: Neustart), Hash-/Versionsprüfung, Defender-Urteilslogik, Wächter-Bewertung, jeweils mit Unit-Tests.
+- **Test-VM `tvpn-test`**: Windows 11 Enterprise Evaluation 22621, 4 vCPU, 4 GB RAM, Checkpoint `sauber`, lokale Admins `User` und `tvpn`. Der Dienst läuft dort als SYSTEM und als Konsolenprozess; der Tor Expert Bundle 15.0.26 ist mit signierter SHA-256 geprüft.
+- **macOS-Build**: `macos.yml` baut eine ad-hoc signierte `.app` als Artefakt. Nicht gestartet, nicht notarisiert; der Nutzer übernimmt macOS später selbst.
 
 ## Fehlt noch
 
-- `tvpnd`: UI-Anbindung und privilegierte Kommandos; Protokoll, Pipe, Token/ACL und Dienst-Wrapper stehen.
-- Netzschicht: WFP-Allowlist, Tor/Mullvad in `tvpnd` einbinden, Recovery.
-- privacy-shield: MAC-Wechsel; Hostname einmalig im Setup (S3).
-- launcher/scanner: Tor Browser am System-Tor, aria2, EICAR/MOTW/Quarantäne.
-- watchdog, Installer-Signierung, USB-Kit, macOS-Schutzfunktionen und Notarisierung.
-- Spikes S1, S2, S4-S6 und Leak-Matrix in der VM; S3 ist entschieden.
+- **S1 / Mullvad**: Der WFP-Permit bindet noch nicht an das VPN-Interface; ohne Mullvad-App und Konto ist die VPN-zu-Tor-Kette ungeprüft. Bis dahin ist der Tor-only-Betrieb bewusst `DEGRADED`, nicht `READY`.
+- **MAC-Wechsel**: Primitive und Tests stehen; der Hyper-V-Adapter meldet `unsupported`. Der echte Adapter-Write (Registry `NetworkAddress` plus Adapter-Neustart) muss auf physischer Hardware geprüft werden.
+- **Hostname**: S3 zeigt `REBOOT_REQUIRED`; die UI zeigt `hostname_unchanged`. Die einmalige Neutralisierung im Setup ist noch nicht in den Installer eingebaut.
+- **Launcher/Fallback**: Tor-Browser-Start, Block-Erkennung und Fallback-Browser sind nicht verdrahtet.
+- **Downloader**: Der VPN-Pfad und die aria2-Integration fehlen; der Shell-Downloader deckt Direkt und Tor ab.
+- **Wächter**: Der Status-Poll-Wächter schaltet bei fehlenden Filtern oder Circuit auf `FAILCLOSED`; ein eigener Prozess mit Sekundentakt, Tray und Panik-Hotkey fehlt.
+- **Installer**: NSIS bündelt noch nicht `tvpnd.exe` und Tor; Code-Signing-Zertifikat und USB-Kit fehlen.
+- **Spikes S2, S4, S5, S6** und die vollständige Leak-Matrix.
 
 ## Befehle
 
@@ -30,18 +32,17 @@ just verify                 # fmt, clippy, Tests, pscheck, Redaktions-Gate
 just e2e                    # Playwright inkl. Download und Aufräumen
 cd ui; bun run check        # Svelte/TS
 cd ui; bun run tauri dev    # echtes Fenster
-cd ui; bun run tauri dev --config tauri.debug.conf.json   # mit CDP-Port 9222
-cd ui; bun run tauri build --config tauri.macos.conf.json # macOS, nur auf einem Mac
+cd ui; bun run tauri build  # Installer/Portable
 ```
 
-Downloads landen in `%USERPROFILE%\Downloads\TVPN`. Die Desktop-Downloads lassen sich mit `ui/scripts/test-desktop-download.mjs` prüfen (App muss mit Debug-Config laufen).
+Die VM-Tests laufen über `tests/vm/run-in-vm.ps1`; Beispiele stehen in `tests/vm/README.md`.
 
 ## Kernentscheidungen
 
-Fokus-Modus (Blocken statt Umleiten), VPN → Tor, Torrents nur über VPN und standardmäßig blockiert, Tor Browser unverändert, keine Telemetrie, Host nur bauen/linten, alles Netzwerkwirksame in die VM. Vollständig: `docs/DECISIONS.md` (D1 bis D32).
+Fokus-Modus (Blocken statt Umleiten), VPN → Tor, Torrents nur über VPN und standardmäßig blockiert, Tor Browser unverändert, keine Telemetrie, Host nur bauen/linten, alles Netzwerkwirksame in die VM. Vollständig: `docs/DECISIONS.md`.
 
 ## Nächster Schritt
 
-1. `service/net` in `tvpnd` einbinden (enable/disable/panic/recover, fail closed).
-2. UI von Mock auf IPC umstellen.
-3. Spikes S1 und S2 in der VM; WFP-Allowlist-Tests.
+1. S1 mit einem Mullvad-Konto in der VM abschließen und den Permit an das VPN-Interface binden.
+2. MAC-Adapter-Write auf physischer Hardware prüfen; Hostname-Neutralisierung in den Installer aufnehmen.
+3. Installer um `tvpnd.exe` und Tor erweitern, signieren, Leak-Matrix fahren.

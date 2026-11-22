@@ -112,11 +112,19 @@ Banner-Arten: `portal_open`, `fallback_active`, `degraded`, `failclosed`, `mac_u
   "banners": ["fallback_active"],
   "downloads": { "active": 1, "quarantined": 0 },
   "session": { "id": "…", "started_at": "2026-11-21T10:00:00Z" },
+  "shield": {
+    "firewall_armed": true,
+    "firewall_filters": 12,
+    "mac_supported": false,
+    "mac_randomized": false
+  },
   "service": { "version": "0.0.0", "protocol": 0 }
 }
 ```
 
 `country` ist ISO 3166-1 alpha-2 in Kleinbuchstaben oder `null` (noch nicht verbunden). Keine IP, kein Hostname, keine Domain.
+
+`shield.firewall_armed` ist die Wahrheit für die UI: `FAILCLOSED` kann auch eine fehlgeschlagene Vorprüfung bedeuten, bei der noch kein Filter gesetzt wurde. Die UI darf dann nicht "Netz gesperrt" behaupten.
 
 ### 6.2 Einstellungen (Whitelist)
 

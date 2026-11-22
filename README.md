@@ -1,11 +1,11 @@
-# TVPN Pro
+﻿# TVPN Pro
 
-> **Status: Alpha. Diese Version schützt noch nichts.**
-> Firewall, VPN und Tor sind nicht implementiert. Der große Knopf simuliert nur den geplanten Ablauf. Die App kann Dateien herunterladen (direkt oder über einen bereits laufenden Tor-Proxy) und zeigt die geplante Oberfläche.
+> **Status: Alpha. Firewall und Tor sind verdrahtet; die VPN-Kette ist ungeprüft.**
+> Der Windows-Dienst setzt Firewall und Tor. Die VPN-Kette braucht die Mullvad-App und ein Konto und ist ohne beides ungeprüft. Der große Knopf startet den echten Dienst; ohne Dienst zeigt die App den Fehlerzustand.
 
-> **English:** TVPN Pro is an early alpha of a one-click privacy tool for Windows. It does **not** protect you yet: no firewall, no VPN, no Tor integration. We are looking for contributors who know the Windows Filtering Platform, Tor, or Rust/Tauri. See [CONTRIBUTING.md](CONTRIBUTING.md).
+> **English:** TVPN Pro is an early alpha of a one-click privacy tool for Windows. The Windows service can arm a WFP default-deny firewall and a local Tor circuit. The VPN leg requires the Mullvad app and account and is unverified. No anonymity guarantee.
 
-Ein Klick soll später: Firewall scharf, MAC wechseln, VPN verbinden, Tor starten, Tor Browser und Downloader öffnen, Downloads prüfen, alles überwachen und beim Ausschalten sauber abbauen. Das ist der Plan. Gebaut ist bisher das Fundament.
+Ein Klick startet den Dienst: Firewall scharf, Tor starten, Downloads prüfen, alles überwachen und beim Ausschalten sauber abbauen. Die VPN-Kette und die MAC-/Hostname-Funktionen sind noch nicht vollständig geprüft.
 
 ## Installieren
 
@@ -42,7 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/Creeper100GB/TVPN-Pro/main/install.
 
 Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert sie; Details stehen in [`ui/README.md`](ui/README.md).
 
-> **Was die App nicht kann:** Firewall, VPN und Tor sind nicht implementiert. Der große Knopf simuliert nur den Ablauf. Die App reduziert keine Spuren und verspricht keine Anonymität.
+> **Was die App nicht kann:** Ohne Mullvad-Konto und -App ist die VPN-Kette ungeprüft. MAC-Wechsel und Hostname sind im Hyper-V-Test nicht umgesetzt (S3: Neustart nötig). Die App reduziert keine Spuren und verspricht keine Anonymität.
 
 ## Was heute funktioniert
 

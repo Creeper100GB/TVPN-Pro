@@ -7,6 +7,7 @@ Jeder Spike: Zeitbox, Test nur in der VM, Ergebnis als Eintrag in `docs/DECISION
 - **Vorgehen:** Mullvad in der VM, Lockdown an, eigene Filter mit Provider-GUID, Abbruch, Reconnect und Serverwechsel simulieren, Filterliste auswerten.
 - **Erfolg:** Kein Paket außerhalb von VPN und Tor, kein Aussperren, Recovery entfernt nur eigene Filter.
 - **Plan B:** Mullvad-Lockdown als alleiniger Kill-Switch, unsere Filter nur für die App-Allowlist.
+- **Stand 22.11.2026:** App-ID-Permit für `tor.exe` und den Mullvad-Daemon ist implementiert und in der VM mit echtem Tor geprüft (12 Filter). Die Interface-Bedingung fehlt weiter; ohne Mullvad-Konto ist die Koexistenz nicht testbar.
 
 ## S2: Tor Browser am System-Tor (launcher)
 - **Frage:** Startet Tor Browser sauber mit externem Tor (Umgebungsvariablen, Control-Port-Auth)? Gehen "Neue Identität" und der Updater? Ändert sich etwas Web-Sichtbares?

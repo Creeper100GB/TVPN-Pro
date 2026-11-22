@@ -1,4 +1,4 @@
-# Aufgabenboard (nur der Orchestrator ändert Status und Zuteilung)
+﻿# Aufgabenboard (nur der Orchestrator ändert Status und Zuteilung)
 
 Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melden per `docs/handoffs/<id>.md`.
 
@@ -24,7 +24,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 ## Phase 1: Spikes (Gate G1), Details in `docs/SPIKES.md`
 | ID | Rolle | Aufgabe | Abnahme | Status |
 |---|---|---|---|---|
-| S1 | net-core | WFP-Filter neben Mullvad-Lockdown | Entscheidung in DECISIONS.md | offen |
+| S1 | net-core | WFP-Filter neben Mullvad-Lockdown | Entscheidung in DECISIONS.md | blockiert: Mullvad-Konto/App fehlt; App-ID-Permit in VM grün, Interface-Bedingung offen |
 | S2 | launcher | Tor Browser am System-Tor | Entscheidung in DECISIONS.md | offen |
 | S3 | privacy-shield | Hostname ohne Neustart | Entscheidung in DECISIONS.md | entschieden: `REBOOT_REQUIRED` (VM 22.11.2026) |
 | S4 | launcher, scanner | aria2/FDM über Tor, Scanner-Engines | Entscheidung in DECISIONS.md | offen |
@@ -34,21 +34,21 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 ## Phase 2: Net-Core MVP (Gate G2)
 | ID | Rolle | Aufgabe | Abnahme | Status |
 |---|---|---|---|---|
-| P2-01 | orchestrator | Zustandsautomat und IPC-Server | Zustandsübergänge laut Vertrag, Unit-Tests | läuft |
-| P2-02 | orchestrator | Logging mit Redaktions-Gate | Gate-Test in CI grün | läuft |
-| P2-03 | net-core | WFP-Layer (arm, permit_app, verify, disarm) | Allowlist-Tests in der VM grün | läuft: Default-Deny + Loopback in VM grün (armed=8, disarmed=0), Allowlist offen |
-| P2-04 | net-core | Tor-Controller | Bootstrap und Circuit-Status zuverlässig | läuft: Control-Client + 2 Mock-Tests, tor.exe in der VM offen |
-| P2-05 | net-core | VPN-Controller (Mullvad) | Verbinden, Land, Status, Fehlerfälle | läuft: CLI-Wrapper + 5 Parser-Tests, App in der VM offen |
+| P2-01 | orchestrator | Zustandsautomat und IPC-Server | Zustandsübergänge laut Vertrag, Unit-Tests | läuft: echte enable/disable/panic/recover, UI-IPC, Dienstinstallation in VM grün |
+| P2-02 | orchestrator | Logging mit Redaktions-Gate | Gate-Test in CI grün | läuft: Gate grün; `tracing` im Dienst noch nicht angebunden |
+| P2-03 | net-core | WFP-Layer (arm, permit_app, verify, disarm) | Allowlist-Tests in der VM grün | läuft: Default-Deny + Tor-Permit in VM grün (12 Filter), Interface-/Allowlist offen |
+| P2-04 | net-core | Tor-Controller | Bootstrap und Circuit-Status zuverlässig | läuft: echtes tor.exe in VM, Bootstrap 100/Circuit; Tor Browser/S2 offen |
+| P2-05 | net-core | VPN-Controller (Mullvad) | Verbinden, Land, Status, Fehlerfälle | blockiert: CLI-Wrapper fertig, Mullvad-Konto/App fehlt |
 | P2-06 | net-core | `tvpn-recover.exe` | Entfernt nur eigene Filter, läuft ohne Dienst | offen |
-| P2-07 | ui-shell | UI-Gerüst mit Button gegen IPC-Mock | Alle Zustände darstellbar | Review |
+| P2-07 | ui-shell | UI-Gerüst mit Button gegen IPC-Mock | Alle Zustände darstellbar | Review: Desktop-UI nutzt echten Dienst und Polling; Klick-E2E in VM offen |
 | P2-08 | qa-security | Leak-Tests Phase 2 (Matrix Abschnitt 8) | Alle relevanten Punkte grün | offen |
 
 ## Phase 3: Privacy und Netzwechsel (Gate G3)
 | ID | Rolle | Aufgabe | Abnahme | Status |
 |---|---|---|---|---|
-| P3-01 | privacy-shield | MAC-Wechsel pro Adapter, Original merken | `ipconfig /all` vorher/nachher, Wiederherstellung | offen |
-| P3-02 | privacy-shield | Hostname laut S3 | wie in S3 entschieden | offen |
-| P3-03 | orchestrator | Voller Ein/Aus-Ablauf (ohne Browser) | Ablauf Abschnitt 5 in der VM | offen |
+| P3-01 | privacy-shield | MAC-Wechsel pro Adapter, Original merken | `ipconfig /all` vorher/nachher, Wiederherstellung | offen: MAC-Primitive/Tests stehen, Hyper-V-Adapter meldet unsupported |
+| P3-02 | privacy-shield | Hostname laut S3 | wie in S3 entschieden | läuft: S3 `REBOOT_REQUIRED`, Banner `hostname_unchanged`; Setup-Neutralisierung offen |
+| P3-03 | orchestrator | Voller Ein/Aus-Ablauf (ohne Browser) | Ablauf Abschnitt 5 in der VM | läuft: Enable bis DEGRADED, Panik trennt Netz, Recovery; VPN-Kette fehlt |
 | P3-04 | net-core | Zustand PORTAL | simuliertes Portal klappt | offen |
 | P3-05 | net-core, watchdog | Netzwechsel und Standby | Matrix-Punkte grün | offen |
 | P3-06 | qa-security | Tests Phase 3 | Matrix-Punkte grün | offen |
@@ -69,7 +69,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 ## Phase 5: Wächter, Fallback, Härtung (Gate G5)
 | ID | Rolle | Aufgabe | Abnahme | Status |
 |---|---|---|---|---|
-| P5-01 | watchdog | Wächter mit allen Takten und Eskalation | Jede Störung löst die richtige Stufe aus | offen |
+| P5-01 | watchdog | Wächter mit allen Takten und Eskalation | Jede Störung löst die richtige Stufe aus | läuft: Status-Poll-Wächter; eigener Prozess/Takte offen |
 | P5-02 | launcher | Block-Erkennung (je S5) | Muster-Tests, Challenge löst nichts aus | offen |
 | P5-03 | launcher, net-core | Fallback-Browser und Firewall-Permit | Nur über VPN-Adapter erreichbar | offen |
 | P5-04 | ui-shell, orchestrator | Panik-Taste, Notfall-Reset in der UI, Session-Zusammenfassung | Funktioniert in der VM | offen |
