@@ -5,3 +5,6 @@
 
 pub mod mullvad;
 pub mod tor;
+
+#[cfg(windows)]
+pub mod wfp;

@@ -147,6 +147,9 @@ version = "0.1.2"
 [[package]]
 name = "tvpn-net"
 version = "0.1.2"
+dependencies = [
+ "windows",
+]
 
 [[package]]
 name = "tvpn-privacy"
