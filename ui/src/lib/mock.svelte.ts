@@ -173,6 +173,27 @@ function removeBanner(kind: BannerKind) {
 	app.banners = app.banners.filter((b) => b !== kind);
 }
 
+/** Maschinen-Codes in eine Handlung übersetzen, ohne Details zu erfinden. */
+export function explainFailure(code: string): string {
+	const messages: Record<string, string> = {
+		E_PREFLIGHT_MISSING_COMPONENT:
+			'Ein Baustein fehlt. Prüfe die Installation von Tor bzw. Mullvad oder schalte VPN in den Einstellungen aus.',
+		E_PREFLIGHT_VPN_NOT_LOGGED_IN:
+			'Mullvad ist nicht angemeldet. Öffne die Mullvad-App oder nutze den Tor-only-Modus.',
+		E_PREFLIGHT_NO_ADMIN: 'Der Dienst hat nicht die nötigen Rechte. Ist er installiert und gestartet?',
+		E_FIREWALL_ARM_FAILED: 'Die Firewall konnte nicht gesetzt werden. Das Netz bleibt gesperrt.',
+		E_FIREWALL_VERIFY_MISMATCH: 'Der Filtersatz ist unvollständig. Notfall-Reset starten.',
+		E_TOR_BOOTSTRAP_TIMEOUT: 'Tor erreicht keinen Circuit. Netzwerk und Tor-Dateien prüfen.',
+		E_TOR_CONTROL_AUTH: 'Tor-Control-Authentisierung fehlgeschlagen. Tor neu starten.',
+		E_TOR_CIRCUIT_FAILED: 'Tor hat keinen Circuit. Netzwerk prüfen.',
+		E_VPN_CONNECT_TIMEOUT: 'Die VPN-Verbindung kam nicht zustande.',
+		E_WATCHDOG_CRITICAL: 'Der Wächter hat eine Komponente verloren. Das Netz ist gesperrt.',
+		service_unavailable: 'Der Dienst ist nicht erreichbar. Ist TVPN Pro installiert?',
+		service_token: 'Der Dienst läuft, aber die UI kann das Sitzungs-Token nicht lesen.'
+	};
+	return messages[code] ?? 'Unbekannter Fehler. Details stehen im Code.';
+}
+
 export function showToast(message: string) {
 	app.toast = message;
 	if (toastTimer) clearTimeout(toastTimer);

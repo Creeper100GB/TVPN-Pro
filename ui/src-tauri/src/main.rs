@@ -18,11 +18,18 @@ fn main() {
         .manage(ServiceClient::default())
         .setup(|app| {
             let show = MenuItem::with_id(app, "show", "Öffnen", true, None::<&str>)?;
-            let panic = MenuItem::with_id(app, "panic", "Panik", true, None::<&str>)?;
+            let panic = MenuItem::with_id(
+                app,
+                "panic",
+                "Panik (Strg+Alt+Shift+F12)",
+                true,
+                None::<&str>,
+            )?;
             let quit = MenuItem::with_id(app, "quit", "Beenden", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &panic, &quit])?;
 
             let mut tray = TrayIconBuilder::new()
+                .tooltip("TVPN Pro")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {

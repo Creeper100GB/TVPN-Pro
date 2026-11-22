@@ -19,6 +19,7 @@
 		app,
 		disable,
 		enable,
+		explainFailure,
 		panic,
 		patchDownload,
 		quarantinedDownloadCount,
@@ -44,7 +45,7 @@
 	);
 	const busy = $derived(isTransient(app.state));
 	const tone = $derived(meta.tone);
-	const primaryDisabled = $derived(busy);
+	const primaryDisabled = $derived(busy && app.state !== 'RECOVERY');
 
 	const startLabel = $derived(
 		new Date(app.since).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
@@ -72,9 +73,11 @@
 			? 'Schutz einschalten'
 			: app.state === 'FAILCLOSED'
 				? 'Notfall-Reset starten'
-				: app.state === 'READY' || app.state === 'DEGRADED'
-					? 'Schutz ausschalten'
-					: meta.action
+				: app.state === 'RECOVERY'
+					? 'Notfall-Reset starten'
+					: app.state === 'READY' || app.state === 'DEGRADED'
+						? 'Schutz ausschalten'
+						: meta.action
 	);
 
 	onMount(() => {
@@ -142,6 +145,7 @@
 				void enable();
 				break;
 			case 'FAILCLOSED':
+			case 'RECOVERY':
 				void recover();
 				break;
 			case 'READY':
@@ -237,7 +241,10 @@
 				{/if}
 
 				{#if app.failureCode && app.state === 'FAILCLOSED'}
-					<p class="error-code">Code: {app.failureCode}</p>
+					<p class="error-code">
+						{explainFailure(app.failureCode)}
+						<span class="code">({app.failureCode})</span>
+					</p>
 				{/if}
 			</section>
 
