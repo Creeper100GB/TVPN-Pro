@@ -120,7 +120,7 @@ if (-not $NoRevert) {
 }
 
 $vm = Get-VM -Name $VMName
-if ($vm.State -eq 'Off') {
+if ($vm.State -ne 'Running') {
     Start-VM -Name $VMName | Out-Null
 }
 
