@@ -22,6 +22,8 @@ Runner: `tests/vm/run-in-vm.ps1`
 
 6. **0.1.4-Installer und Panik-Hotkey**: Der Installer 0.1.4 installiert Dienst, App und Tor nach `C:\Program Files\TVPN Pro`; Enable bis `DEGRADED`, Verkehr blockiert, `panic` -> `OFF`, Uninstall entfernt den Dienst. Auf dem Host ist `Ctrl+Alt+Shift+F12` über einen eigenen Win32-`RegisterHotKey`-Thread registriert; ein synthetischer Tastendruck löste `panic` aus und der Dienst ging auf `OFF`.
 
+7. **Hard-Kill und Stale Recovery** (`stale-recovery-smoke.ps1`): Nach `enable` mit 12 Filtern wurde der Dienst hart beendet. `Test-NetConnection` blieb blockiert, weil die WFP-Session statisch ist. Der nächste Dienststart meldete `RECOVERY`, verweigerte `enable`; `recover` entfernte die Filter, Zustand `OFF`, Netz wieder erreichbar. Log: `tests/vm/out/20261122T163156Z-stale-recovery-smoke.log`.
+
 ## Grenzen
 
 - Keine Mullvad-App und kein Konto: VPN-zu-Tor-Kette und S1-Interface-Bedingung sind nicht geprüft.

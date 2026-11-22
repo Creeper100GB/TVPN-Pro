@@ -36,10 +36,10 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 |---|---|---|---|---|
 | P2-01 | orchestrator | Zustandsautomat und IPC-Server | Zustandsübergänge laut Vertrag, Unit-Tests | läuft: echte enable/disable/panic/recover, UI-IPC, Dienstinstallation in VM grün |
 | P2-02 | orchestrator | Logging mit Redaktions-Gate | Gate-Test in CI grün | läuft: Gate grün; `tracing` im Dienst noch nicht angebunden |
-| P2-03 | net-core | WFP-Layer (arm, permit_app, verify, disarm) | Allowlist-Tests in der VM grün | läuft: Default-Deny + Tor-Permit in VM grün (12 Filter), Interface-/Allowlist offen |
+| P2-03 | net-core | WFP-Layer (arm, permit_app, verify, disarm) | Allowlist-Tests in der VM grün | läuft: Default-Deny + Tor-Permit in VM grün (12 Filter), statische Session und Stale-Recovery grün; Interface-/Allowlist offen |
 | P2-04 | net-core | Tor-Controller | Bootstrap und Circuit-Status zuverlässig | läuft: echtes tor.exe in VM, Bootstrap 100/Circuit; Tor Browser/S2 offen |
 | P2-05 | net-core | VPN-Controller (Mullvad) | Verbinden, Land, Status, Fehlerfälle | blockiert: CLI-Wrapper fertig, Mullvad-Konto/App fehlt |
-| P2-06 | net-core | `tvpn-recover.exe` | Entfernt nur eigene Filter, läuft ohne Dienst | offen |
+| P2-06 | net-core | `tvpn-recover.exe` | Entfernt nur eigene Filter, läuft ohne Dienst | läuft: `recover` im Dienst in VM grün; eigenständige EXE offen |
 | P2-07 | ui-shell | UI-Gerüst mit Button gegen IPC-Mock | Alle Zustände darstellbar | Review: Desktop-UI nutzt echten Dienst und Polling; Klick-E2E in VM offen |
 | P2-08 | qa-security | Leak-Tests Phase 2 (Matrix Abschnitt 8) | Alle relevanten Punkte grün | offen |
 
