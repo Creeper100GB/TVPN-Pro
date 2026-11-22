@@ -34,6 +34,26 @@ Das Skript sucht den neuesten Release, lädt den Installer, prüft die SHA-256-P
 
 </details>
 
+### Winget
+
+Das Manifest liegt im Repository und ist mit `winget validate` geprüft. Lokal:
+
+```powershell
+winget install --manifest packaging\winget\manifests\c\Creeper100GB\TVPNPro\0.1.6
+```
+
+Nach der Aufnahme in `microsoft/winget-pkgs`:
+
+```powershell
+winget install --id Creeper100GB.TVPNPro -e
+winget upgrade --id Creeper100GB.TVPNPro -e
+```
+
+Winget erkennt auch eine über GitHub installierte `0.1.5` am ARP-Eintrag
+`TVPN Pro` / `TVPN Pro Contributors` und kann sie auf `0.1.6` aktualisieren.
+Winget läuft nicht automatisch im Hintergrund; das Upgrade wird bewusst
+angestoßen. Details: [`docs/WINGET.md`](docs/WINGET.md).
+
 ### macOS (Apple Silicon, in Vorbereitung)
 
 Es gibt noch keinen öffentlichen macOS-Download. Der Build-Check läuft in der CI; Signierung und Notarisierung fehlen. Sobald ein Release da ist, installiert dieses Skript:

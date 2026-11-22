@@ -48,6 +48,10 @@ e2e:
 redact:
     powershell -NoProfile -ExecutionPolicy Bypass -File tests/log-redaction/check-log-redaction.ps1 -SelfTest
 
+# Winget: validate the local 0.1.6 manifest (requires winget)
+winget-validate:
+    winget validate --manifest packaging/winget/manifests/c/Creeper100GB/TVPNPro/0.1.6
+
 # Everything CI runs, in one go
 verify: fmt-check lint test pscheck redact
     @Write-Host 'verify: all checks passed'
