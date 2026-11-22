@@ -14,6 +14,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if armed != 8 || disarmed != 0 {
         return Err("unexpected WFP filter count".into());
     }
+
+    // A dropped engine must clean up after itself. Otherwise a normal service
+    // shutdown leaves static filters behind and the host stays blocked.
+    engine.arm_default_deny()?;
+    let rearmed = engine.verify();
+    drop(engine);
+    let after_drop = tvpn_net::wfp::WfpEngine::open()?.verify();
+    println!("rearmed={rearmed} after_drop={after_drop}");
+    if rearmed != 8 || after_drop != 0 {
+        return Err("drop did not remove the WFP filters".into());
+    }
     Ok(())
 }
 

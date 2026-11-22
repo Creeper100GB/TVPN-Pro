@@ -10,10 +10,11 @@ use std::fmt;
 use windows::core::{GUID, PCWSTR, PWSTR};
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::NetworkManagement::WindowsFilteringPlatform::{
-    FwpmEngineClose0, FwpmEngineOpen0, FwpmFilterAdd0, FwpmFilterDeleteByKey0, FwpmSubLayerAdd0,
-    FwpmSubLayerDeleteByKey0, FwpmTransactionAbort0, FwpmTransactionBegin0, FwpmTransactionCommit0,
-    FWPM_ACTION0, FWPM_ACTION0_0, FWPM_CONDITION_FLAGS, FWPM_DISPLAY_DATA0, FWPM_FILTER0,
-    FWPM_FILTER_CONDITION0, FWPM_LAYER_ALE_AUTH_CONNECT_V4, FWPM_LAYER_ALE_AUTH_CONNECT_V6,
+    FwpmEngineClose0, FwpmEngineOpen0, FwpmFilterAdd0, FwpmFilterDeleteByKey0, FwpmFilterGetByKey0,
+    FwpmFreeMemory0, FwpmSubLayerAdd0, FwpmSubLayerDeleteByKey0, FwpmTransactionAbort0,
+    FwpmTransactionBegin0, FwpmTransactionCommit0, FWPM_ACTION0, FWPM_ACTION0_0,
+    FWPM_CONDITION_FLAGS, FWPM_DISPLAY_DATA0, FWPM_FILTER0, FWPM_FILTER_CONDITION0,
+    FWPM_LAYER_ALE_AUTH_CONNECT_V4, FWPM_LAYER_ALE_AUTH_CONNECT_V6,
     FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, FWPM_SUBLAYER0,
     FWP_ACTION_BLOCK, FWP_ACTION_PERMIT, FWP_ACTION_TYPE, FWP_CONDITION_FLAG_IS_LOOPBACK,
     FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_FLAGS_ALL_SET, FWP_UINT32, FWP_UINT64,
@@ -226,18 +227,46 @@ impl WfpEngine {
         }
     }
 
-    /// Number of block/permit filters this object claims to own.
+    /// Number of our block/permit filters that are actually present.
+    ///
+    /// This reads the state back from BFE instead of trusting `installed`, so
+    /// a failed or skipped teardown is visible. The service uses this to decide
+    /// between `TEARDOWN -> OFF` and `TEARDOWN -> RECOVERY`.
     pub fn verify(&self) -> usize {
-        if self.installed {
-            LAYERS.len() * 2
-        } else {
-            0
+        let mut present = 0;
+
+        for index in 0..LAYERS.len() {
+            for key in [filter_key(index as u128), filter_key(100 + index as u128)] {
+                let mut filter: *mut FWPM_FILTER0 = std::ptr::null_mut();
+                let code = unsafe { FwpmFilterGetByKey0(self.handle, &key, &mut filter) };
+                if code != 0 {
+                    continue;
+                }
+
+                present += 1;
+                if !filter.is_null() {
+                    let mut pointer = filter.cast::<core::ffi::c_void>();
+                    unsafe {
+                        FwpmFreeMemory0(&mut pointer);
+                    }
+                }
+            }
         }
+
+        present
     }
 }
 
 impl Drop for WfpEngine {
     fn drop(&mut self) {
+        // WFP objects added in a non-dynamic session are static: they outlive
+        // the process and would keep the host locked down after a clean
+        // shutdown. A hard kill still leaves them in place on purpose; the
+        // service can detect them via `verify` before arming and enter
+        // RECOVERY.
+        if self.installed {
+            let _ = self.disarm();
+        }
         unsafe {
             let _ = FwpmEngineClose0(self.handle);
         }
