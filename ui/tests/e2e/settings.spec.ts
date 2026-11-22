@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { APP_VERSION } from '../../src/lib/version';
+
 test('tester diagnostics: clipboard gets version, state and settings', async ({ page, context }) => {
 	await page.goto('/');
 	await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
@@ -15,7 +17,7 @@ test('tester diagnostics: clipboard gets version, state and settings', async ({ 
 	await expect(settings.getByRole('status')).toHaveText('Kopiert.');
 
 	const report = await page.evaluate(() => navigator.clipboard.readText());
-	expect(report).toContain('TVPN Pro 0.1.2 (Alpha)');
+	expect(report).toContain(`TVPN Pro ${APP_VERSION} (Alpha)`);
 	expect(report).toContain('Zustand: Aus');
 	expect(report).toContain('Torrents blockiert');
 	expect(report).toContain('Enthält keine IP-Adressen');
