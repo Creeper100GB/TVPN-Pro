@@ -4,7 +4,11 @@
 //! privileged side effects live in [`backend`]; the transport (named pipe,
 //! token file, ACL) lives next to it and is tested on Windows.
 
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+#[cfg(test)]
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::{json, Value};
 use tvpn_core::ipc::{Command, Request, Response};
@@ -32,6 +36,7 @@ pub struct Service {
     state: State,
     state_since: u64,
     settings: Settings,
+    settings_path: PathBuf,
     session_id: String,
     started_at: u64,
     authorized: bool,
@@ -52,11 +57,22 @@ impl Service {
 
     /// Test and integration constructor.
     pub fn with_backend(token: impl Into<String>, backend: Box<dyn Backend>) -> Self {
+        Self::with_backend_and_path(token, backend, settings_path())
+    }
+
+    /// Constructor with an explicit settings file, used by persistence tests.
+    pub fn with_backend_and_path(
+        token: impl Into<String>,
+        backend: Box<dyn Backend>,
+        settings_path: PathBuf,
+    ) -> Self {
         let started_at = now();
+        let settings = load_settings(&settings_path);
         Self {
             state: State::Off,
             state_since: started_at,
-            settings: Settings::default(),
+            settings,
+            settings_path,
             session_id: format!("{:x}-{:x}", std::process::id(), started_at),
             started_at,
             authorized: false,
@@ -304,6 +320,7 @@ impl Service {
         match self.settings.apply(&patch) {
             Ok(settings) => {
                 self.settings = settings;
+                save_settings(&self.settings_path, &self.settings);
                 Response::ok(
                     request.id.as_str(),
                     serde_json::to_value(&self.settings).unwrap_or(Value::Null),
@@ -313,7 +330,28 @@ impl Service {
         }
     }
 
+    /// Rechecks the armed components. Called by every status poll and by the
+    /// background watchdog thread.
+    pub fn watchdog_tick(&mut self) {
+        if !matches!(self.state, State::Ready | State::Degraded) {
+            return;
+        }
+        let status = self.backend.status();
+        let level = tvpn_watchdog::evaluate(
+            status.firewall_armed,
+            status.tor_circuit,
+            self.settings.vpn_enabled,
+            status.vpn_connected,
+        );
+        if level == tvpn_watchdog::Level::Critical {
+            let _ = self.transition(Event::WatchdogCritical);
+            self.failure_code = Some("E_WATCHDOG_CRITICAL".to_owned());
+            self.add_banner("failclosed");
+        }
+    }
+
     fn status(&mut self) -> Value {
+        self.watchdog_tick();
         let backend = self.backend.status();
         let BackendStatus {
             vpn_connected,
@@ -326,22 +364,6 @@ impl Service {
             mac_randomized,
             banners,
         } = backend;
-
-        // Lightweight watchdog: every status poll rechecks the components. A
-        // failure while armed moves to FAILCLOSED and keeps the filters.
-        if matches!(self.state, State::Ready | State::Degraded) {
-            let level = tvpn_watchdog::evaluate(
-                firewall_armed,
-                tor_circuit,
-                self.settings.vpn_enabled,
-                vpn_connected,
-            );
-            if level == tvpn_watchdog::Level::Critical {
-                let _ = self.transition(Event::WatchdogCritical);
-                self.failure_code = Some("E_WATCHDOG_CRITICAL".to_owned());
-                self.add_banner("failclosed");
-            }
-        }
 
         let mut all_banners = self.banners.clone();
         for banner in banners {
@@ -429,6 +451,45 @@ impl Service {
 
 fn error_response(request: &Request, error: BackendError) -> Response {
     Response::error(request.id.as_str(), error.code, Some(error.detail))
+}
+
+fn settings_path() -> PathBuf {
+    if let Ok(path) = std::env::var("TVPN_SETTINGS_PATH") {
+        return PathBuf::from(path);
+    }
+
+    #[cfg(test)]
+    {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!("tvpn-settings-{}-{id}.json", std::process::id()))
+    }
+
+    #[cfg(not(test))]
+    {
+        std::env::var("ProgramData")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(r"C:\ProgramData"))
+            .join("TVPN")
+            .join("settings.json")
+    }
+}
+
+fn load_settings(path: &Path) -> Settings {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<Settings>(&text).ok())
+        .filter(|settings| settings.validate().is_ok())
+        .unwrap_or_default()
+}
+
+fn save_settings(path: &Path, settings: &Settings) {
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(text) = serde_json::to_string_pretty(settings) {
+        let _ = std::fs::write(path, text);
+    }
 }
 
 fn now() -> u64 {
@@ -631,6 +692,34 @@ mod tests {
         ));
         assert!(!response.ok);
         assert_eq!(response.error.unwrap().code, "E_STATE_CONFLICT");
+    }
+
+    #[test]
+    fn settings_persist_across_instances() {
+        let path = std::env::temp_dir().join(format!("tvpn-persist-{}.json", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+
+        let mut first = Service::with_backend_and_path(
+            "secret",
+            Box::new(MockBackend::default()),
+            path.clone(),
+        );
+        let hello = first.handle(&request("hello", "h", json!({ "token": "secret" })));
+        assert!(hello.ok);
+        let set = first.handle(&request(
+            "set_settings",
+            "set",
+            json!({ "settings": { "vpn_country": "NL" } }),
+        ));
+        assert!(set.ok);
+
+        let second = Service::with_backend_and_path(
+            "secret",
+            Box::new(MockBackend::default()),
+            path.clone(),
+        );
+        assert_eq!(second.settings.vpn_country, "NL");
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

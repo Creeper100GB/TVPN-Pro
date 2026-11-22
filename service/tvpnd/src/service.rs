@@ -111,7 +111,7 @@ fn run_service() -> Result<()> {
     })?;
 
     let token = crate::pipe::generate_token();
-    let result = crate::pipe::run_with_stop(&token, &stop);
+    let result = crate::pipe::run_with_stop(&token, Arc::clone(&stop));
     let exit_code = if result.is_ok() {
         ServiceExitCode::Win32(0)
     } else {

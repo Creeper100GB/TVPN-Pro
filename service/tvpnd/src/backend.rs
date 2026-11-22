@@ -48,7 +48,7 @@ pub struct BackendStatus {
 }
 
 /// Side effects needed by the state machine.
-pub trait Backend {
+pub trait Backend: Send {
     fn preflight(&mut self, settings: &Settings) -> Result<(), BackendError>;
     fn arm(&mut self) -> Result<(), BackendError>;
     fn randomize_mac(&mut self) -> Result<bool, BackendError>;
@@ -165,6 +165,11 @@ pub struct RealBackend {
     mac_randomized: bool,
     banners: Vec<String>,
 }
+
+// The raw WFP handle is a kernel handle, not thread-affine; the watchdog and
+// the pipe thread share the service behind a mutex.
+#[cfg(windows)]
+unsafe impl Send for RealBackend {}
 
 #[cfg(windows)]
 impl RealBackend {

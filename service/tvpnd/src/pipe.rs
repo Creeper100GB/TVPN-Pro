@@ -12,6 +12,7 @@ use std::io;
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
@@ -246,15 +247,27 @@ pub fn wake() {
 
 /// Runs the pipe server until the process is stopped.
 pub fn run(token: &str) -> io::Result<()> {
-    run_with_stop(token, &AtomicBool::new(false))
+    run_with_stop(token, Arc::new(AtomicBool::new(false)))
 }
 
 /// Runs the pipe server until `stop` is set between two connections.
-pub fn run_with_stop(token: &str, stop: &AtomicBool) -> io::Result<()> {
+pub fn run_with_stop(token: &str, stop: Arc<AtomicBool>) -> io::Result<()> {
     let path = write_token(token)?;
     println!("tvpnd: pipe {} token {}", pipe_name(), path.display());
 
-    let mut service = Service::new(token);
+    let service = Arc::new(Mutex::new(Service::new(token)));
+
+    let watchdog = Arc::clone(&service);
+    let watchdog_stop = Arc::clone(&stop);
+    std::thread::spawn(move || {
+        while !watchdog_stop.load(Ordering::SeqCst) {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+            if let Ok(mut guard) = watchdog.lock() {
+                guard.watchdog_tick();
+            }
+        }
+    });
+
     loop {
         if stop.load(Ordering::SeqCst) {
             break;
@@ -277,8 +290,10 @@ pub fn run_with_stop(token: &str, stop: &AtomicBool) -> io::Result<()> {
             break;
         }
 
-        service.reset_auth();
-        let result = serve_connection(handle, &mut service);
+        if let Ok(mut guard) = service.lock() {
+            guard.reset_auth();
+        }
+        let result = serve_connection(handle, &service);
         unsafe {
             let _ = DisconnectNamedPipe(handle);
             let _ = CloseHandle(handle);
@@ -292,7 +307,7 @@ pub fn run_with_stop(token: &str, stop: &AtomicBool) -> io::Result<()> {
     Ok(())
 }
 
-fn serve_connection(handle: HANDLE, service: &mut Service) -> io::Result<()> {
+fn serve_connection(handle: HANDLE, service: &Arc<Mutex<Service>>) -> io::Result<()> {
     let mut pending = Vec::new();
     let mut buffer = [0u8; 8 * 1024];
 
@@ -327,7 +342,12 @@ fn serve_connection(handle: HANDLE, service: &mut Service) -> io::Result<()> {
                 Err(_) => return Err(io::Error::new(io::ErrorKind::InvalidData, "not UTF-8")),
             };
             let response = match parse_request(text) {
-                Ok(request) => service.handle(&request),
+                Ok(request) => {
+                    let mut guard = service
+                        .lock()
+                        .map_err(|_| io::Error::other("service state poisoned"))?;
+                    guard.handle(&request)
+                }
                 Err(error) => Response::error("?", error.code(), Some(error.detail())),
             };
             write_response(handle, &response)?;
