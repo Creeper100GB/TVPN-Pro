@@ -80,6 +80,7 @@
 	onMount(() => {
 		let disposed = false;
 		let stop: (() => void) | undefined;
+		let stopPanic: (() => void) | undefined;
 
 		void (async () => {
 			try {
@@ -114,6 +115,15 @@
 				});
 				if (disposed) unsubscribe();
 				else stop = unsubscribe;
+
+				if (isDesktop) {
+					const { listen } = await import('@tauri-apps/api/event');
+					const unsubscribePanic = await listen('panic-requested', () => {
+						void panic();
+					});
+					if (disposed) unsubscribePanic();
+					else stopPanic = unsubscribePanic;
+				}
 			} catch {
 				// Browser preview or missing permission: mock mode stays usable.
 			}
@@ -122,6 +132,7 @@
 		return () => {
 			disposed = true;
 			stop?.();
+			stopPanic?.();
 		};
 	});
 

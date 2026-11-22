@@ -224,6 +224,13 @@ pub async fn service_command(
     }
 }
 
+/// Synchronous panic used by the tray icon and the global shortcut. It works
+/// even when the webview is closed.
+pub fn panic_now(client: &ServiceClient) -> Result<Value, String> {
+    let _guard = client.0.lock().map_err(|_| "service_lock".to_owned())?;
+    call("panic", json!({}))
+}
+
 /// Installs and starts the service. Must run elevated.
 #[tauri::command]
 pub async fn service_install() -> Result<(), String> {
