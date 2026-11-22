@@ -37,8 +37,8 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 | P2-01 | orchestrator | Zustandsautomat und IPC-Server | Zustandsübergänge laut Vertrag, Unit-Tests | läuft |
 | P2-02 | orchestrator | Logging mit Redaktions-Gate | Gate-Test in CI grün | läuft |
 | P2-03 | net-core | WFP-Layer (arm, permit_app, verify, disarm) | Allowlist-Tests in der VM grün | offen |
-| P2-04 | net-core | Tor-Controller | Bootstrap und Circuit-Status zuverlässig | offen |
-| P2-05 | net-core | VPN-Controller (Mullvad) | Verbinden, Land, Status, Fehlerfälle | offen |
+| P2-04 | net-core | Tor-Controller | Bootstrap und Circuit-Status zuverlässig | läuft: Control-Client + 2 Mock-Tests, tor.exe in der VM offen |
+| P2-05 | net-core | VPN-Controller (Mullvad) | Verbinden, Land, Status, Fehlerfälle | läuft: CLI-Wrapper + 5 Parser-Tests, App in der VM offen |
 | P2-06 | net-core | `tvpn-recover.exe` | Entfernt nur eigene Filter, läuft ohne Dienst | offen |
 | P2-07 | ui-shell | UI-Gerüst mit Button gegen IPC-Mock | Alle Zustände darstellbar | Review |
 | P2-08 | qa-security | Leak-Tests Phase 2 (Matrix Abschnitt 8) | Alle relevanten Punkte grün | offen |
