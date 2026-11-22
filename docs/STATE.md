@@ -10,6 +10,7 @@ Stand: 22. November 2026. Details stehen in `docs/reports/`, `docs/DECISIONS.md`
 - **Tauri-Shell**: echter Download (`reqwest`, Routen `direct` und `tor` über SOCKS 9150), SHA-256, Defender-Scan, Mark-of-the-Web, Quarantäne bei Fund, Abbruch löscht die Datei. Die Oberfläche redet über `service_status` und `service_command` mit `tvpnd`.
 - **`service/net`**: Tor-Control-Client, Mullvad-CLI-Wrapper und WFP-Default-Deny mit Loopback- und Programm-Freigaben. In der VM: 8 Block-/Loopback-Filter plus 4 Tor-Permits, `firewall_filters=12`, danach `0`.
 - **`tvpnd`**: Protokoll (`hello`, `get_status`, `get_settings`, `set_settings`, `enable`, `disable`, `panic`, `recover`), Named Pipe mit Token/ACL, Dienst-Wrapper mit `--install`/`--uninstall`, echter Backend-Ablauf (WFP, VPN, Tor, Fail-Closed) und Session-Zusammenfassung. In der VM geprüft: Installation als Dienst, Pipe als Besitzer, Enable mit echtem `tor.exe`, Panik trennt das Netz wieder.
+- **Windows-Installer**: NSIS perMachine, bündelt `tvpnd.exe` und den geprüften Tor Expert Bundle. Postinstall installiert den Dienst, Preuninstall entfernt ihn. In der VM grün: Installation nach `Program Files`, Dienststart, Enable bis `DEGRADED`, blockierter Verkehr, Panik, Netz zurück, Uninstall. Signierung fehlt.
 - **`service/privacy`**, **`service/launcher`**, **`service/scanner`**, **`service/watchdog`**: MAC- und Hostname-Primitive (S3: Neustart), Hash-/Versionsprüfung, Defender-Urteilslogik, Wächter-Bewertung, jeweils mit Unit-Tests.
 - **Test-VM `tvpn-test`**: Windows 11 Enterprise Evaluation 22621, 4 vCPU, 4 GB RAM, Checkpoint `sauber`, lokale Admins `User` und `tvpn`. Der Dienst läuft dort als SYSTEM und als Konsolenprozess; der Tor Expert Bundle 15.0.26 ist mit signierter SHA-256 geprüft.
 - **macOS-Build**: `macos.yml` baut eine ad-hoc signierte `.app` als Artefakt. Nicht gestartet, nicht notarisiert; der Nutzer übernimmt macOS später selbst.
@@ -22,7 +23,7 @@ Stand: 22. November 2026. Details stehen in `docs/reports/`, `docs/DECISIONS.md`
 - **Launcher/Fallback**: Tor-Browser-Start, Block-Erkennung und Fallback-Browser sind nicht verdrahtet.
 - **Downloader**: Der VPN-Pfad und die aria2-Integration fehlen; der Shell-Downloader deckt Direkt und Tor ab.
 - **Wächter**: Der Status-Poll-Wächter schaltet bei fehlenden Filtern oder Circuit auf `FAILCLOSED`; ein eigener Prozess mit Sekundentakt, Tray und Panik-Hotkey fehlt.
-- **Installer**: NSIS bündelt noch nicht `tvpnd.exe` und Tor; Code-Signing-Zertifikat und USB-Kit fehlen.
+- **Installer**: Bundling und VM-Installation sind grün; Code-Signing-Zertifikat, USB-Kit und Update-Kanal fehlen.
 - **Spikes S2, S4, S5, S6** und die vollständige Leak-Matrix.
 
 ## Befehle
@@ -45,4 +46,4 @@ Fokus-Modus (Blocken statt Umleiten), VPN → Tor, Torrents nur über VPN und st
 
 1. S1 mit einem Mullvad-Konto in der VM abschließen und den Permit an das VPN-Interface binden.
 2. MAC-Adapter-Write auf physischer Hardware prüfen; Hostname-Neutralisierung in den Installer aufnehmen.
-3. Installer um `tvpnd.exe` und Tor erweitern, signieren, Leak-Matrix fahren.
+3. Installer signieren, USB-Kit bauen und die Leak-Matrix fahren.

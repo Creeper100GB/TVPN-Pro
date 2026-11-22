@@ -18,6 +18,8 @@ Runner: `tests/vm/run-in-vm.ps1`
 3. **Dienstinstallation** (`service-install.ps1`): `tvpnd --install` legt den Dienst an, schreibt `owner.sid` und startet ihn als SYSTEM. Der Benutzer `tvpn` liest das Token und bekommt über die Pipe `state=OFF`. `--uninstall` entfernt den Dienst. Log: `tests/vm/out/20261122T152426Z-service-install.log`.
 4. **UI** (Host, Mock-Dienst): Die Release-App liest Status und Einstellungen über die Tauri-Befehle; nach einem externen `enable` zeigt sie `Geschützt` und die Verbindungsleiste. Der Klick auf den Power-Knopf wurde per synthetischer Maus nicht ausgelöst; das ist eine Grenze des Testharnischs, nicht des IPC-Pfads. Screenshot: `C:\Users\Jonah\VMs\ui-rel2-ready.png`.
 
+5. **Installer** (`installer-smoke.ps1`): NSIS `perMachine` installiert nach `C:\Program Files\TVPN Pro`, der Dienst `tvpnd` läuft als SYSTEM, `tvpnd.exe` und `tor\{tor.exe,geoip,geoip6}` liegen daneben. Pipe als `tvpn`, `set_settings vpn_enabled=false`, `enable` -> `DEGRADED`, Filter scharf, Verkehr blockiert; `panic` -> `OFF`, Netz zurück; der Uninstaller entfernt den Dienst. Log: `tests/vm/out/20261122T154957Z-installer-smoke.log`.
+
 ## Grenzen
 
 - Keine Mullvad-App und kein Konto: VPN-zu-Tor-Kette und S1-Interface-Bedingung sind nicht geprüft.

@@ -49,25 +49,30 @@ Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert
 | Bereich | Stand |
 |---|---|
 | Oberfläche (Svelte 5, Tauri 2) | Alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Hell/Dunkel, macOS-artiges Fenster |
-| Download (Desktop) | Echt: HTTPS über `reqwest`, Routen **Direkt** und **Über Tor** (lokaler SOCKS-Proxy 9150), SHA-256, Abbruch löscht die Datei |
+| Download (Desktop) | Echt: HTTPS über `reqwest`, Routen **Direkt** und **über Tor** (lokaler SOCKS-Proxy 9150), SHA-256, Mark-of-the-Web, Quarantäne bei Fund, Abbruch löscht die Datei |
 | Download-Liste | Fortschritt, Urteile, Route, Aufräumen |
-| Torrent-Vertrag | Nur über VPN erlaubt, Standard blockiert; die VPN-Route braucht den Dienst, der noch fehlt |
-| Service-Kern | Zustandsautomat, Settings-Whitelist, URL-/Magnet-Regeln, IPC-Envelope, Redaktions-Scanner, 48 Tests |
-| Tests | `just verify`, 5 Playwright-E2E-Tests, 4 Tauri-Tests |
-| macOS-Build | Unsignierte, ad-hoc signierte `.app` aus der CI; kein Schutz, keine Notarisierung |
-| Defender-Scan | Wird versucht; läuft Defender nicht, lautet das Urteil ehrlich „Unklar" (Windows) |
+| Torrent-Vertrag | Nur über VPN erlaubt, Standard blockiert; die VPN-Route ist noch nicht implementiert |
+| Dienst `tvpnd` | Protokoll, Named Pipe mit Token/ACL, enable/disable/panic/recover, Dienstinstallation, echte WFP-/Tor-/Mullvad-Anbindung |
+| WFP | Default-Deny plus Tor-/Mullvad-Permit; in der VM 12 Filter, Verkehr blockiert; Interface-Bindung (S1) offen |
+| Tor | Control-Client und echter `tor.exe`; in der VM Bootstrap 100 und Circuit |
+| VPN | Mullvad-CLI-Wrapper; ohne Konto und App ungeprüft |
+| Wächter | Status-Poll-Wächter schaltet auf `FAILCLOSED`; eigener Prozess offen |
+| Installer | NSIS perMachine mit Dienst und Tor; in der VM Installation, Enable, Panik und Uninstall grün; unsigniert |
+| Tests | `just verify`, Playwright-E2E, VM-Smoke-Tests, Installer-Smoke |
+| macOS-Build | Ad-hoc signierte `.app` aus der CI; kein Schutz, keine Notarisierung |
 
 ## Was ausdrücklich fehlt
 
-- **Firewall (WFP)**, Kill-Switch, Allowlist, Recovery.
-- **VPN** (Mullvad-CLI) und **Tor-Controller**; die Tor-Route nutzt nur einen vorhandenen Proxy.
-- **MAC-Wechsel**, Hostname, Portal-Erkennung.
-- **Tor Browser** starten und prüfen, **aria2**, Scanner-Pipeline mit EICAR, MOTW, Quarantäne.
-- **Wächter**, Notfall-Reset, Installer mit Signierung, USB-Kit.
+- **S1 / Mullvad**: Die WFP-Permits sind an die App-ID gebunden, nicht an das VPN-Interface. Ohne Mullvad-Konto und -App ist die VPN-zu-Tor-Kette ungeprüft.
+- **MAC-Wechsel**: Primitive und Tests stehen; der Hyper-V-Adapter meldet `unsupported`. Der echte Adapter-Write muss auf physischer Hardware geprüft werden.
+- **Hostname**: S3 verlangt einen Neustart; die UI zeigt `hostname_unchanged`. Die einmalige Neutralisierung im Setup fehlt.
+- **Tor Browser starten**, Block-Erkennung und Fallback-Browser, aria2 und die VPN-Download-Route.
+- **Eigener Wächterprozess**, Tray-Icon und Panik-Hotkey.
+- **Code-Signierung**, USB-Kit und Update-Kanal.
 - **macOS-Schutzfunktionen** (Firewall, VPN, MAC). Ein unsignierter Build-Check läuft in der CI, signiert und notarisiert ist nichts.
-- Spikes S1 bis S6 und die Leak-Matrix in der VM.
+- Spikes S2, S4, S5, S6 und die vollständige Leak-Matrix in der VM.
 
-Kurz: Das Gerüst steht, der Schutz fehlt. Wer die App als „anonym" verkauft, lügt.
+Kurz: Firewall und Tor sind verdrahtet, die VPN-Kette und die Hardware-Features sind es nicht. Wer die App als "anonym" verkauft, lügt.
 
 ## Screenshots
 

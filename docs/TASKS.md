@@ -78,6 +78,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 ## Phase 6 bis 9
 | ID | Rolle | Aufgabe | Gate |
 |---|---|---|---|
+| P6-01 | orchestrator | NSIS perMachine: Dienst und Tor gebündelt | VM: Installation, Enable, Panik, Uninstall grün; Signierung offen | G6 |
 | P6-xx | orchestrator, qa-security | Windows-Installer, Signierung, USB-Kit, Prüfanleitung | G6 |
 | P7-xx | alle (nach S7) | macOS-Port hinter den Traits, DMG, Notarisierung | G7 |
 | P8-xx | qa-security | Unabhängiges Abschluss-Audit | G8 |
