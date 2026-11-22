@@ -198,7 +198,7 @@ dependencies = [
 
 [[package]]
 name = "tvpn-core"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -206,36 +206,36 @@ dependencies = [
 
 [[package]]
 name = "tvpn-launcher"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "sha2",
 ]
 
 [[package]]
 name = "tvpn-net"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "windows",
 ]
 
 [[package]]
 name = "tvpn-privacy"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "getrandom",
 ]
 
 [[package]]
 name = "tvpn-scanner"
-version = "0.1.5"
+version = "0.1.6"
 
 [[package]]
 name = "tvpn-watchdog"
-version = "0.1.5"
+version = "0.1.6"
 
 [[package]]
 name = "tvpnd"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "base64",
  "getrandom",

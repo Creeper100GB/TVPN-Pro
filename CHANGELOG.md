@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.6 – Alpha (2026-11-22)
+
+- Fail-closed: WFP-Filter bleiben bei einem Dienststopp oder Absturz erhalten; nur `disable`, `panic`, `recover` oder Uninstall entfernen sie. Ein Neustart geht in `RECOVERY`.
+- `%ProgramData%\TVPN` bekommt eine restriktive DACL; Token, Owner-SID und Settings werden atomar mit expliziter DACL geschrieben. Owner-SIDs werden vor der SDDL-Nutzung validiert.
+- Tor wird vor dem Start gegen einen gepinnten SHA-256 geprüft. Der Tor-Permit wird erst nach dem VPN-Schritt gesetzt, nicht während des Verbindungsaufbaus.
+- Test-Environment-Overrides gelten nur in Debug-Builds. Der unnötige Webview-Befehl `service_install` wurde entfernt.
+- Downloader: Staging außerhalb des Download-Ordners, Größenlimit, Redirect-Validierung, reservierte Windows-Namen, Aufräumen partieller Dateien, Abbruch aller Downloads bei Panic/Disable.
+- UI: ehrliche Zustände (Tor-only, ungeprüfte VPN-Kette), korrekte Panic-Taste, keine Fake-Angaben zu MAC, Hostname, Portal, Torrents oder Hash-Abfrage. Dienstausfall zeigt keinen falschen READY-Zustand mehr.
+- Torrents sind ausdrücklich nicht implementiert: kein Client, keine `.torrent`-Datei, kein Seeding. Magnet-Links werden abgelehnt.
+- `install.ps1` verweigert die Installation ohne `SHA256SUMS.txt`.
+- VM-Tests: sauberer Dienststopp mit erhaltener Sperre, Uninstall im bewaffneten Zustand, `check.torproject.org` meldet `IsTor=True` (Exit-IP wird nicht ausgegeben).
+- Winget-Manifest für die manuelle Installation/Update-Prüfung vorbereitet.
+
 ## 0.1.2 – Alpha (2026-11-21)
 
 - Portable Windows-EXE: herunterladen, doppelklicken, starten, ohne Installation.

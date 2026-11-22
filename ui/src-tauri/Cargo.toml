@@ -1,6 +1,6 @@
 [package]
 name = "tvpn-pro"
-version = "0.1.5"
+version = "0.1.6"
 description = "TVPN Pro desktop shell"
 edition = "2021"
 rust-version = "1.85"
