@@ -67,6 +67,32 @@ fn pipe_name() -> String {
     std::env::var("TVPN_PIPE_NAME").unwrap_or_else(|_| r"\\.\pipe\tvpn-pro-v0".to_owned())
 }
 
+fn owner_path() -> PathBuf {
+    token_path().with_file_name("owner.sid")
+}
+
+/// The SID of the installing user. The service runs as SYSTEM, so it cannot
+/// derive the interactive user from its own token.
+fn owner_sid() -> Option<String> {
+    if let Ok(value) = std::env::var("TVPN_OWNER_SID") {
+        if !value.is_empty() {
+            return Some(value);
+        }
+    }
+    std::fs::read_to_string(owner_path())
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+/// Persists the installing user's SID before the service is created.
+pub fn save_owner_sid(sid: &str) -> io::Result<()> {
+    if let Some(parent) = owner_path().parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(owner_path(), sid)
+}
+
 /// Writes the token with a DACL for SYSTEM, the current account and the
 /// optional install owner from `TVPN_OWNER_SID`.
 pub fn write_token(token: &str) -> io::Result<PathBuf> {
@@ -77,9 +103,7 @@ pub fn write_token(token: &str) -> io::Result<PathBuf> {
     std::fs::write(&path, token)?;
 
     let sid = current_user_sid()?;
-    let owner = std::env::var("TVPN_OWNER_SID")
-        .ok()
-        .filter(|value| !value.is_empty());
+    let owner = owner_sid();
     let mut sddl = format!("D:P(A;;GA;;;SY)(A;;GA;;;{sid})");
     if let Some(owner) = owner {
         if owner != sid {
@@ -91,7 +115,7 @@ pub fn write_token(token: &str) -> io::Result<PathBuf> {
     Ok(path)
 }
 
-fn current_user_sid() -> io::Result<String> {
+pub(crate) fn current_user_sid() -> io::Result<String> {
     unsafe {
         let mut token = HANDLE::default();
         OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token)
@@ -162,9 +186,7 @@ fn set_dacl(path: &Path, sddl: &str) -> io::Result<()> {
 
 fn create_pipe(name: &str) -> io::Result<HANDLE> {
     let sid = current_user_sid()?;
-    let owner = std::env::var("TVPN_OWNER_SID")
-        .ok()
-        .filter(|value| !value.is_empty());
+    let owner = owner_sid();
     let mut sddl = format!("D:P(A;;GA;;;SY)(A;;GA;;;{sid})");
     if let Some(owner) = owner {
         if owner != sid {

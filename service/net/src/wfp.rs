@@ -1,24 +1,31 @@
 //! Windows Filtering Platform default-deny layer.
 //!
-//! Installs one block filter per ALE connect/receive layer and a loopback
-//! permit with a higher weight. Everything else stays blocked until the
-//! allowlist filters are added. The real filter test runs in the VM; the
-//! ignored test must never run on the host.
+//! Installs one block filter per ALE connect/receive layer, a loopback permit
+//! with a higher weight, and per-program permits for the components that must
+//! reach the network after arming (`tor.exe`, the Mullvad daemon). Everything
+//! else stays blocked until the service disarms or recovers.
+//!
+//! The real filter test runs in the VM; the ignored test must never run on the
+//! host.
 
+use std::ffi::c_void;
 use std::fmt;
+use std::os::windows::ffi::OsStrExt;
+use std::path::Path;
 
 use windows::core::{GUID, PCWSTR, PWSTR};
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::NetworkManagement::WindowsFilteringPlatform::{
     FwpmEngineClose0, FwpmEngineOpen0, FwpmFilterAdd0, FwpmFilterDeleteByKey0, FwpmFilterGetByKey0,
-    FwpmFreeMemory0, FwpmSubLayerAdd0, FwpmSubLayerDeleteByKey0, FwpmTransactionAbort0,
-    FwpmTransactionBegin0, FwpmTransactionCommit0, FWPM_ACTION0, FWPM_ACTION0_0,
-    FWPM_CONDITION_FLAGS, FWPM_DISPLAY_DATA0, FWPM_FILTER0, FWPM_FILTER_CONDITION0,
-    FWPM_LAYER_ALE_AUTH_CONNECT_V4, FWPM_LAYER_ALE_AUTH_CONNECT_V6,
-    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, FWPM_SUBLAYER0,
-    FWP_ACTION_BLOCK, FWP_ACTION_PERMIT, FWP_ACTION_TYPE, FWP_CONDITION_FLAG_IS_LOOPBACK,
-    FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_FLAGS_ALL_SET, FWP_UINT32, FWP_UINT64,
-    FWP_VALUE0, FWP_VALUE0_0,
+    FwpmFreeMemory0, FwpmGetAppIdFromFileName0, FwpmSubLayerAdd0, FwpmSubLayerDeleteByKey0,
+    FwpmTransactionAbort0, FwpmTransactionBegin0, FwpmTransactionCommit0, FWPM_ACTION0,
+    FWPM_ACTION0_0, FWPM_CONDITION_ALE_APP_ID, FWPM_CONDITION_FLAGS, FWPM_DISPLAY_DATA0,
+    FWPM_FILTER0, FWPM_FILTER_CONDITION0, FWPM_LAYER_ALE_AUTH_CONNECT_V4,
+    FWPM_LAYER_ALE_AUTH_CONNECT_V6, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4,
+    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, FWPM_SUBLAYER0, FWP_ACTION_BLOCK, FWP_ACTION_PERMIT,
+    FWP_ACTION_TYPE, FWP_BYTE_BLOB, FWP_BYTE_BLOB_TYPE, FWP_CONDITION_FLAG_IS_LOOPBACK,
+    FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_EQUAL, FWP_MATCH_FLAGS_ALL_SET,
+    FWP_UINT32, FWP_UINT64, FWP_VALUE0, FWP_VALUE0_0,
 };
 use windows::Win32::System::Rpc::RPC_C_AUTHN_WINNT;
 
@@ -28,6 +35,11 @@ const FILTER_BASE: u128 = 0x5456504e5f0000000000000000000000;
 
 const BLOCK_WEIGHT: u64 = 0x100;
 const PERMIT_WEIGHT: u64 = 0x200;
+const APP_WEIGHT: u64 = 0x300;
+
+/// Four components at most: tor, mullvad, the fallback browser and the
+/// torrent client. Each gets one permit filter per layer.
+const MAX_PERMITTED_APPS: usize = 4;
 
 const LAYERS: [GUID; 4] = [
     FWPM_LAYER_ALE_AUTH_CONNECT_V4,
@@ -35,6 +47,26 @@ const LAYERS: [GUID; 4] = [
     FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4,
     FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6,
 ];
+
+fn block_key(layer: usize) -> GUID {
+    filter_key(layer as u128)
+}
+
+fn loopback_key(layer: usize) -> GUID {
+    filter_key(100 + layer as u128)
+}
+
+fn app_key(app: usize, layer: usize) -> GUID {
+    filter_key(200 + (app * LAYERS.len() + layer) as u128)
+}
+
+fn filter_key(index: u128) -> GUID {
+    GUID::from_u128(FILTER_BASE + index)
+}
+
+fn wide(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(std::iter::once(0)).collect()
+}
 
 #[derive(Debug)]
 pub struct WfpError(pub u32);
@@ -47,18 +79,11 @@ impl fmt::Display for WfpError {
 
 impl std::error::Error for WfpError {}
 
-fn filter_key(index: u128) -> GUID {
-    GUID::from_u128(FILTER_BASE + index)
-}
-
-fn wide(value: &str) -> Vec<u16> {
-    value.encode_utf16().chain(std::iter::once(0)).collect()
-}
-
 /// Owns the WFP engine handle and the installed filter set.
 pub struct WfpEngine {
     handle: HANDLE,
     installed: bool,
+    permitted: usize,
 }
 
 impl WfpEngine {
@@ -73,6 +98,7 @@ impl WfpEngine {
         Ok(Self {
             handle,
             installed: false,
+            permitted: 0,
         })
     }
 
@@ -96,6 +122,7 @@ impl WfpEngine {
                     return Err(WfpError(commit));
                 }
                 self.installed = true;
+                self.permitted = 0;
                 Ok(())
             }
             Err(error) => {
@@ -125,24 +152,92 @@ impl WfpEngine {
             return Err(WfpError(code));
         }
 
+        // Loopback is always allowed. Without it PowerShell Direct, the pipe
+        // and local UI calls would be cut off as well.
+        let loopback = FWPM_FILTER_CONDITION0 {
+            fieldKey: FWPM_CONDITION_FLAGS,
+            matchType: FWP_MATCH_FLAGS_ALL_SET,
+            conditionValue: FWP_CONDITION_VALUE0 {
+                r#type: FWP_UINT32,
+                Anonymous: FWP_CONDITION_VALUE0_0 {
+                    uint32: FWP_CONDITION_FLAG_IS_LOOPBACK,
+                },
+            },
+        };
+
         for (index, layer) in LAYERS.iter().enumerate() {
             self.add_filter(
                 *layer,
-                filter_key(index as u128),
+                block_key(index),
                 BLOCK_WEIGHT,
                 FWP_ACTION_BLOCK,
-                None,
+                &[],
             )?;
             self.add_filter(
                 *layer,
-                filter_key(100 + index as u128),
+                loopback_key(index),
                 PERMIT_WEIGHT,
                 FWP_ACTION_PERMIT,
-                Some(FWP_CONDITION_FLAG_IS_LOOPBACK),
+                std::slice::from_ref(&loopback),
             )?;
         }
 
         Ok(())
+    }
+
+    /// Permits one program on all four ALE layers.
+    ///
+    /// This is a program allowlist, not an interface allowlist: the interface
+    /// condition (S1) is still open. The caller must therefore only add the
+    /// Tor binary after the VPN is up, and the UI must not claim that the
+    /// allowlist is interface-bound.
+    pub fn permit_app(&mut self, path: &Path) -> Result<(), WfpError> {
+        if self.permitted >= MAX_PERMITTED_APPS {
+            return Err(WfpError(87)); // ERROR_INVALID_PARAMETER
+        }
+
+        let wide_path: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let mut blob: *mut FWP_BYTE_BLOB = std::ptr::null_mut();
+        let code = unsafe { FwpmGetAppIdFromFileName0(PCWSTR(wide_path.as_ptr()), &mut blob) };
+        if code != 0 {
+            return Err(WfpError(code));
+        }
+
+        let result = (|| {
+            let condition = FWPM_FILTER_CONDITION0 {
+                fieldKey: FWPM_CONDITION_ALE_APP_ID,
+                matchType: FWP_MATCH_EQUAL,
+                conditionValue: FWP_CONDITION_VALUE0 {
+                    r#type: FWP_BYTE_BLOB_TYPE,
+                    Anonymous: FWP_CONDITION_VALUE0_0 { byteBlob: blob },
+                },
+            };
+
+            for (index, layer) in LAYERS.iter().enumerate() {
+                self.add_filter(
+                    *layer,
+                    app_key(self.permitted, index),
+                    APP_WEIGHT,
+                    FWP_ACTION_PERMIT,
+                    std::slice::from_ref(&condition),
+                )?;
+            }
+            Ok(())
+        })();
+
+        let mut raw = blob as *mut c_void;
+        unsafe {
+            FwpmFreeMemory0(&mut raw);
+        }
+
+        if result.is_ok() {
+            self.permitted += 1;
+        }
+        result
     }
 
     fn add_filter(
@@ -151,22 +246,10 @@ impl WfpEngine {
         key: GUID,
         weight: u64,
         action: FWP_ACTION_TYPE,
-        loopback_flags: Option<u32>,
+        conditions: &[FWPM_FILTER_CONDITION0],
     ) -> Result<(), WfpError> {
         let mut name = wide("TVPN Pro filter");
         let mut weight_value = weight;
-        let mut conditions = Vec::new();
-
-        if let Some(flags) = loopback_flags {
-            conditions.push(FWPM_FILTER_CONDITION0 {
-                fieldKey: FWPM_CONDITION_FLAGS,
-                matchType: FWP_MATCH_FLAGS_ALL_SET,
-                conditionValue: FWP_CONDITION_VALUE0 {
-                    r#type: FWP_UINT32,
-                    Anonymous: FWP_CONDITION_VALUE0_0 { uint32: flags },
-                },
-            });
-        }
 
         let filter = FWPM_FILTER0 {
             filterKey: key,
@@ -186,7 +269,7 @@ impl WfpEngine {
             filterCondition: if conditions.is_empty() {
                 std::ptr::null_mut()
             } else {
-                conditions.as_mut_ptr()
+                conditions.as_ptr() as *mut FWPM_FILTER_CONDITION0
             },
             action: FWPM_ACTION0 {
                 r#type: action,
@@ -208,18 +291,24 @@ impl WfpEngine {
     pub fn disarm(&mut self) -> Result<(), WfpError> {
         self.delete_owned();
         self.installed = false;
+        self.permitted = 0;
         Ok(())
     }
 
     fn delete_owned(&self) {
         for index in 0..LAYERS.len() {
-            let key = filter_key(index as u128);
-            unsafe {
-                let _ = FwpmFilterDeleteByKey0(self.handle, &key);
+            for key in [block_key(index), loopback_key(index)] {
+                unsafe {
+                    let _ = FwpmFilterDeleteByKey0(self.handle, &key);
+                }
             }
-            let permit = filter_key(100 + index as u128);
-            unsafe {
-                let _ = FwpmFilterDeleteByKey0(self.handle, &permit);
+        }
+        for app in 0..MAX_PERMITTED_APPS {
+            for index in 0..LAYERS.len() {
+                let key = app_key(app, index);
+                unsafe {
+                    let _ = FwpmFilterDeleteByKey0(self.handle, &key);
+                }
             }
         }
         unsafe {
@@ -227,7 +316,7 @@ impl WfpEngine {
         }
     }
 
-    /// Number of our block/permit filters that are actually present.
+    /// Number of our filters that are actually present.
     ///
     /// This reads the state back from BFE instead of trusting `installed`, so
     /// a failed or skipped teardown is visible. The service uses this to decide
@@ -236,34 +325,44 @@ impl WfpEngine {
         let mut present = 0;
 
         for index in 0..LAYERS.len() {
-            for key in [filter_key(index as u128), filter_key(100 + index as u128)] {
-                let mut filter: *mut FWPM_FILTER0 = std::ptr::null_mut();
-                let code = unsafe { FwpmFilterGetByKey0(self.handle, &key, &mut filter) };
-                if code != 0 {
-                    continue;
+            for key in [block_key(index), loopback_key(index)] {
+                if self.filter_exists(&key) {
+                    present += 1;
                 }
-
-                present += 1;
-                if !filter.is_null() {
-                    let mut pointer = filter.cast::<core::ffi::c_void>();
-                    unsafe {
-                        FwpmFreeMemory0(&mut pointer);
-                    }
+            }
+        }
+        for app in 0..MAX_PERMITTED_APPS {
+            for index in 0..LAYERS.len() {
+                if self.filter_exists(&app_key(app, index)) {
+                    present += 1;
                 }
             }
         }
 
         present
     }
+
+    fn filter_exists(&self, key: &GUID) -> bool {
+        let mut filter: *mut FWPM_FILTER0 = std::ptr::null_mut();
+        let code = unsafe { FwpmFilterGetByKey0(self.handle, key, &mut filter) };
+        if code != 0 {
+            return false;
+        }
+        if !filter.is_null() {
+            let mut pointer = filter.cast::<c_void>();
+            unsafe {
+                FwpmFreeMemory0(&mut pointer);
+            }
+        }
+        true
+    }
 }
 
 impl Drop for WfpEngine {
     fn drop(&mut self) {
-        // WFP objects added in a non-dynamic session are static: they outlive
-        // the process and would keep the host locked down after a clean
-        // shutdown. A hard kill still leaves them in place on purpose; the
-        // service can detect them via `verify` before arming and enter
-        // RECOVERY.
+        // A clean shutdown always removes our filters. A hard kill may leave
+        // them behind; `open` + `verify` lets the service detect that and enter
+        // RECOVERY before the user sees an open network.
         if self.installed {
             let _ = self.disarm();
         }
@@ -282,6 +381,8 @@ mod tests {
         assert_ne!(filter_key(0), filter_key(1));
         assert_ne!(filter_key(0), GUID::default());
         assert_ne!(SUBLAYER, GUID::default());
+        assert_ne!(app_key(0, 0), block_key(0));
+        assert_ne!(app_key(0, 0), app_key(1, 0));
     }
 
     #[test]

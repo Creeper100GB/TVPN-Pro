@@ -8,8 +8,20 @@ fn console() {
     let token = match std::env::var("TVPN_TOKEN") {
         Ok(value) if !value.is_empty() => value,
         _ => {
-            eprintln!("tvpnd: set TVPN_TOKEN for console mode");
-            std::process::exit(2);
+            #[cfg(windows)]
+            {
+                let token = tvpnd::pipe::generate_token();
+                if let Err(error) = tvpnd::pipe::write_token(&token) {
+                    eprintln!("tvpnd: cannot write the session token: {error}");
+                    std::process::exit(1);
+                }
+                token
+            }
+            #[cfg(not(windows))]
+            {
+                eprintln!("tvpnd: set TVPN_TOKEN for console mode");
+                std::process::exit(2);
+            }
         }
     };
 
@@ -47,6 +59,22 @@ fn console() {
 fn main() {
     if std::env::args().any(|argument| argument == "--console") {
         console();
+        return;
+    }
+
+    if std::env::args().any(|argument| argument == "--install") {
+        if let Err(error) = tvpnd::service::install() {
+            eprintln!("tvpnd: install failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    if std::env::args().any(|argument| argument == "--uninstall") {
+        if let Err(error) = tvpnd::service::uninstall() {
+            eprintln!("tvpnd: uninstall failed: {error}");
+            std::process::exit(1);
+        }
         return;
     }
 
