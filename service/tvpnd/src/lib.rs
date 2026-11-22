@@ -68,8 +68,16 @@ impl Service {
     ) -> Self {
         let started_at = now();
         let settings = load_settings(&settings_path);
+        let mut backend = backend;
+        let stale = backend.stale_session();
+        let state = if stale { State::Recovery } else { State::Off };
+        let banners = if stale {
+            vec!["failclosed".to_owned()]
+        } else {
+            Vec::new()
+        };
         Self {
-            state: State::Off,
+            state,
             state_since: started_at,
             settings,
             settings_path,
@@ -78,8 +86,12 @@ impl Service {
             authorized: false,
             token: token.into(),
             backend,
-            banners: Vec::new(),
-            failure_code: None,
+            banners,
+            failure_code: if stale {
+                Some("E_PREFLIGHT_STALE_SESSION".to_owned())
+            } else {
+                None
+            },
             last_summary: None,
             reached_ready: false,
             failclosed_count: 0,
@@ -371,7 +383,9 @@ impl Service {
                 all_banners.push(banner);
             }
         }
-        if self.state == State::FailClosed && !all_banners.iter().any(|b| b == "failclosed") {
+        if matches!(self.state, State::FailClosed | State::Recovery)
+            && !all_banners.iter().any(|b| b == "failclosed")
+        {
             all_banners.push("failclosed".to_owned());
         }
 

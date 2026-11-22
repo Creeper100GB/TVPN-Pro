@@ -49,6 +49,10 @@ pub struct BackendStatus {
 
 /// Side effects needed by the state machine.
 pub trait Backend: Send {
+    /// True when the last process died with our filters still installed.
+    fn stale_session(&mut self) -> bool {
+        false
+    }
     fn preflight(&mut self, settings: &Settings) -> Result<(), BackendError>;
     fn arm(&mut self) -> Result<(), BackendError>;
     fn randomize_mac(&mut self) -> Result<bool, BackendError>;
@@ -175,7 +179,7 @@ unsafe impl Send for RealBackend {}
 impl RealBackend {
     pub fn new() -> Self {
         Self {
-            wfp: None,
+            wfp: WfpEngine::open().ok(),
             tor: None,
             tor_child: None,
             mullvad: None,
@@ -266,10 +270,19 @@ impl Default for RealBackend {
 
 #[cfg(windows)]
 impl Backend for RealBackend {
+    fn stale_session(&mut self) -> bool {
+        self.wfp
+            .as_ref()
+            .map(WfpEngine::has_own_filters)
+            .unwrap_or(false)
+    }
+
     fn preflight(&mut self, settings: &Settings) -> Result<(), BackendError> {
-        let engine =
-            WfpEngine::open().map_err(|_| BackendError::new("E_PREFLIGHT_NO_ADMIN", "wfp"))?;
-        self.wfp = Some(engine);
+        if self.wfp.is_none() {
+            self.wfp = Some(
+                WfpEngine::open().map_err(|_| BackendError::new("E_PREFLIGHT_NO_ADMIN", "wfp"))?,
+            );
+        }
 
         let tor = Self::tor_path();
         if !tor.exists() {
@@ -500,7 +513,7 @@ impl Backend for RealBackend {
             vpn_country: country.or_else(|| self.vpn_country.clone()),
             tor_bootstrap: bootstrap,
             tor_circuit: circuit,
-            firewall_armed: self.armed,
+            firewall_armed: self.armed || filters > 0,
             firewall_filters: filters,
             mac_supported: false,
             mac_randomized: self.mac_randomized,

@@ -22,10 +22,10 @@ use windows::Win32::NetworkManagement::WindowsFilteringPlatform::{
     FWPM_ACTION0_0, FWPM_CONDITION_ALE_APP_ID, FWPM_CONDITION_FLAGS, FWPM_DISPLAY_DATA0,
     FWPM_FILTER0, FWPM_FILTER_CONDITION0, FWPM_LAYER_ALE_AUTH_CONNECT_V4,
     FWPM_LAYER_ALE_AUTH_CONNECT_V6, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4,
-    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, FWPM_SUBLAYER0, FWP_ACTION_BLOCK, FWP_ACTION_PERMIT,
-    FWP_ACTION_TYPE, FWP_BYTE_BLOB, FWP_BYTE_BLOB_TYPE, FWP_CONDITION_FLAG_IS_LOOPBACK,
-    FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_EQUAL, FWP_MATCH_FLAGS_ALL_SET,
-    FWP_UINT32, FWP_UINT64, FWP_VALUE0, FWP_VALUE0_0,
+    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, FWPM_SESSION0, FWPM_SUBLAYER0, FWP_ACTION_BLOCK,
+    FWP_ACTION_PERMIT, FWP_ACTION_TYPE, FWP_BYTE_BLOB, FWP_BYTE_BLOB_TYPE,
+    FWP_CONDITION_FLAG_IS_LOOPBACK, FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_EQUAL,
+    FWP_MATCH_FLAGS_ALL_SET, FWP_UINT32, FWP_UINT64, FWP_VALUE0, FWP_VALUE0_0,
 };
 use windows::Win32::System::Rpc::RPC_C_AUTHN_WINNT;
 
@@ -87,11 +87,24 @@ pub struct WfpEngine {
 }
 
 impl WfpEngine {
-    /// Opens a dynamic WFP session.
+    /// Opens a static WFP session. Filters survive a hard kill; a clean
+    /// shutdown disarms them explicitly, and the next start uses `verify` to
+    /// detect leftovers and enters RECOVERY.
     pub fn open() -> Result<Self, WfpError> {
         let mut handle = HANDLE::default();
-        let code =
-            unsafe { FwpmEngineOpen0(PCWSTR::null(), RPC_C_AUTHN_WINNT, None, None, &mut handle) };
+        let session = FWPM_SESSION0 {
+            flags: 0,
+            ..Default::default()
+        };
+        let code = unsafe {
+            FwpmEngineOpen0(
+                PCWSTR::null(),
+                RPC_C_AUTHN_WINNT,
+                None,
+                Some(&session),
+                &mut handle,
+            )
+        };
         if code != 0 {
             return Err(WfpError(code));
         }
@@ -340,6 +353,11 @@ impl WfpEngine {
         }
 
         present
+    }
+
+    /// True when any filter with our fixed keys is still installed.
+    pub fn has_own_filters(&self) -> bool {
+        self.verify() > 0
     }
 
     fn filter_exists(&self, key: &GUID) -> bool {
