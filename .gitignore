@@ -42,3 +42,5 @@ ui/src-tauri/gen/
 ui/tests/e2e/.tmp/
 ui/test-results/
 ui/playwright-report/
+
+tools/tor/

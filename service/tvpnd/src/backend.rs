@@ -387,6 +387,17 @@ impl Backend for RealBackend {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
+
+        if let Some(directory) = tor_path.parent() {
+            let geoip = directory.join("geoip");
+            if geoip.exists() {
+                command.arg("--GeoIPFile").arg(geoip);
+            }
+            let geoip6 = directory.join("geoip6");
+            if geoip6.exists() {
+                command.arg("--GeoIPv6File").arg(geoip6);
+            }
+        }
         #[cfg(windows)]
         command.creation_flags(0x08000000); // CREATE_NO_WINDOW
 

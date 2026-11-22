@@ -54,13 +54,18 @@ pub fn service_exe() -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("TVPN_SERVICE_EXE") {
         return Ok(PathBuf::from(path));
     }
-    let local = std::env::current_exe()
+    let parent = std::env::current_exe()
         .map_err(|_| "service_exe".to_owned())?
         .parent()
-        .map(|parent| parent.join("tvpnd.exe"))
+        .map(PathBuf::from)
         .ok_or_else(|| "service_exe".to_owned())?;
+    let local = parent.join("tvpnd.exe");
     if local.exists() {
         return Ok(local);
+    }
+    let bundled = parent.join("resources").join("tvpnd.exe");
+    if bundled.exists() {
+        return Ok(bundled);
     }
     let installed = PathBuf::from(r"C:\Program Files\TVPN\tvpnd.exe");
     if installed.exists() {

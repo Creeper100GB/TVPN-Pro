@@ -40,6 +40,18 @@
 			"icons/128x128@2x.png",
 			"icons/icon.icns",
 			"icons/icon.ico"
-		]
+		],
+		"resources": {
+			"../../target/release/tvpnd.exe": "tvpnd.exe",
+			"../../tools/tor/tor.exe": "tor/tor.exe",
+			"../../tools/tor/geoip": "tor/geoip",
+			"../../tools/tor/geoip6": "tor/geoip6"
+		},
+		"windows": {
+			"nsis": {
+				"installerHooks": "./nsis/installer.nsh",
+				"installMode": "perMachine"
+			}
+		}
 	}
 }
