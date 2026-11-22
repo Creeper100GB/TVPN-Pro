@@ -51,6 +51,15 @@ try {
     $status = $reader.ReadLine() | ConvertFrom-Json
     if (-not $status.ok) { throw 'status failed' }
     Write-Host ("service-install: ok state={0}" -f $status.data.state)
+    Write-Host '--- programdata ACL ---'
+    & icacls (Join-Path $env:ProgramData 'TVPN')
+    foreach ($name in @('session.token', 'owner.sid', 'settings.json')) {
+        $file = Join-Path $env:ProgramData "TVPN\$name"
+        if (Test-Path -LiteralPath $file) {
+            Write-Host "--- $name ---"
+            & icacls $file
+        }
+    }
     exit 0
 }
 finally {

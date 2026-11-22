@@ -51,6 +51,19 @@ pub fn install() -> Result<()> {
     Ok(())
 }
 
+/// Removes only the TVPN Pro WFP filters, even when the service is already
+/// stopped. Called by the uninstaller so a stale armed session cannot leave the
+/// machine without a way back.
+fn disarm_own_filters() -> std::result::Result<(), windows_service::Error> {
+    use std::io;
+    let map = |error: tvpn_net::wfp::WfpError| {
+        windows_service::Error::Winapi(io::Error::other(format!("WFP: {error}")))
+    };
+    let mut engine = tvpn_net::wfp::WfpEngine::open().map_err(map)?;
+    engine.disarm().map_err(map)?;
+    Ok(())
+}
+
 /// Stops and deletes the service.
 pub fn uninstall() -> Result<()> {
     let manager = ServiceManager::local_computer(None::<&str>, ServiceManagerAccess::CONNECT)?;
@@ -68,6 +81,11 @@ pub fn uninstall() -> Result<()> {
             _ => std::thread::sleep(Duration::from_millis(200)),
         }
     }
+
+    // The service no longer disarms its filters on drop (fail-closed). Remove
+    // them explicitly before the binary and its recovery path are deleted.
+    disarm_own_filters()?;
+
     service.delete()?;
     Ok(())
 }

@@ -82,7 +82,6 @@ impl std::error::Error for WfpError {}
 /// Owns the WFP engine handle and the installed filter set.
 pub struct WfpEngine {
     handle: HANDLE,
-    installed: bool,
     permitted: usize,
 }
 
@@ -110,7 +109,6 @@ impl WfpEngine {
         }
         Ok(Self {
             handle,
-            installed: false,
             permitted: 0,
         })
     }
@@ -134,7 +132,6 @@ impl WfpEngine {
                     }
                     return Err(WfpError(commit));
                 }
-                self.installed = true;
                 self.permitted = 0;
                 Ok(())
             }
@@ -303,7 +300,6 @@ impl WfpEngine {
     /// Removes only our filters and sublayer.
     pub fn disarm(&mut self) -> Result<(), WfpError> {
         self.delete_owned();
-        self.installed = false;
         self.permitted = 0;
         Ok(())
     }
@@ -378,12 +374,10 @@ impl WfpEngine {
 
 impl Drop for WfpEngine {
     fn drop(&mut self) {
-        // A clean shutdown always removes our filters. A hard kill may leave
-        // them behind; `open` + `verify` lets the service detect that and enter
-        // RECOVERY before the user sees an open network.
-        if self.installed {
-            let _ = self.disarm();
-        }
+        // Never disarm on drop. A service stop, a crash or a clean process exit
+        // is not a user-requested disable; the filters must stay in BFE until
+        // an explicit `disarm()` or `recover` removes them. The next start sees
+        // them again and enters RECOVERY.
         unsafe {
             let _ = FwpmEngineClose0(self.handle);
         }

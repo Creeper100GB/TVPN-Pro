@@ -232,6 +232,7 @@ Präfixe bleiben stabil; konkrete Codes dürfen innerhalb eines Präfixes ergän
 | `E_FIREWALL_ARM_FAILED` | Filter konnten nicht gesetzt werden |
 | `E_FIREWALL_VERIFY_MISMATCH` | Filtersatz unvollständig oder verändert |
 | `E_FIREWALL_RECOVERY_FAILED` | eigene Filter nicht entfernbar |
+| `E_SETTINGS_PERSIST` | Einstellungen konnten nicht sicher gespeichert werden |
 | `E_MAC_UNSUPPORTED` | Adaptertreiber kann die MAC nicht ändern |
 | `E_MAC_APPLY_FAILED` | MAC geschrieben, Adapter kam nicht wieder hoch |
 | `E_HOSTNAME_APPLY_FAILED` | Hostname konnte nicht gesetzt werden |

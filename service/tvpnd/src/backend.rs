@@ -382,10 +382,9 @@ impl Backend for RealBackend {
     }
 
     fn tor_start(&mut self) -> Result<(), BackendError> {
-        if self.connect_tor().is_ok() {
-            return Ok(());
-        }
-
+        // Always start our own Tor. A foreign process on the control port is
+        // not trusted, even if it presents a cookie: it could fake bootstrap
+        // and circuit state.
         let tor_path = Self::tor_path();
         let data_dir = Self::tor_data_dir();
         std::fs::create_dir_all(&data_dir)
@@ -426,6 +425,11 @@ impl Backend for RealBackend {
 
         let deadline = Instant::now() + Duration::from_secs(40);
         while Instant::now() < deadline {
+            if let Some(child) = self.tor_child.as_mut() {
+                if child.try_wait().ok().flatten().is_some() {
+                    return Err(BackendError::new("E_TOR_CONTROL_AUTH", "child_exited"));
+                }
+            }
             if self.connect_tor().is_ok() {
                 return Ok(());
             }
@@ -474,12 +478,42 @@ impl Backend for RealBackend {
     fn shutdown(&mut self) -> Result<(), BackendError> {
         self.tor = None;
         if let Some(mut child) = self.tor_child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+            match child.try_wait() {
+                Ok(Some(_)) => {}
+                Ok(None) => {
+                    child
+                        .kill()
+                        .map_err(|_| BackendError::new("E_FIREWALL_RECOVERY_FAILED", "tor_kill"))?;
+                }
+                Err(_) => return Err(BackendError::new("E_FIREWALL_RECOVERY_FAILED", "tor_wait")),
+            }
+            child
+                .wait()
+                .map_err(|_| BackendError::new("E_FIREWALL_RECOVERY_FAILED", "tor_reap"))?;
         }
-        if let Some(client) = self.mullvad.as_ref() {
-            let _ = client.disconnect();
+
+        if self.mullvad.is_some() {
+            if let Some(client) = self.mullvad.as_ref() {
+                client.disconnect().map_err(|_| {
+                    BackendError::new("E_FIREWALL_RECOVERY_FAILED", "vpn_disconnect")
+                })?;
+            }
+            let deadline = Instant::now() + Duration::from_secs(8);
+            loop {
+                let (connected, _) = self.read_status();
+                if !connected {
+                    break;
+                }
+                if Instant::now() >= deadline {
+                    return Err(BackendError::new(
+                        "E_FIREWALL_RECOVERY_FAILED",
+                        "vpn_still_connected",
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(500));
+            }
         }
+
         self.vpn_country = None;
         Ok(())
     }
@@ -518,6 +552,18 @@ impl Backend for RealBackend {
             mac_supported: false,
             mac_randomized: self.mac_randomized,
             banners: self.banners.clone(),
+        }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for RealBackend {
+    fn drop(&mut self) {
+        // A service stop is not a user-requested disable: the WFP filters stay
+        // armed (fail-closed). The Tor child, however, must not be orphaned.
+        if let Some(mut child) = self.tor_child.take() {
+            let _ = child.kill();
+            let _ = child.wait();
         }
     }
 }

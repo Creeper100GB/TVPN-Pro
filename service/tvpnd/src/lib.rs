@@ -45,7 +45,6 @@ pub struct Service {
     banners: Vec<String>,
     failure_code: Option<String>,
     last_summary: Option<Value>,
-    reached_ready: bool,
     failclosed_count: u32,
 }
 
@@ -93,7 +92,6 @@ impl Service {
                 None
             },
             last_summary: None,
-            reached_ready: false,
             failclosed_count: 0,
         }
     }
@@ -220,7 +218,6 @@ impl Service {
             return error_response(request, error);
         }
 
-        self.reached_ready = true;
         if !self.settings.vpn_enabled {
             let _ = self.transition(Event::WatchdogWarn);
         }
@@ -239,17 +236,18 @@ impl Service {
             );
         }
 
-        let reached = if self.reached_ready {
-            "READY"
-        } else {
-            self.state.as_str()
-        };
+        let reached = self.state.as_str();
 
         if let Err(error) = self.transition(Event::Disable) {
             return error_response(request, error);
         }
 
-        let _ = self.backend.shutdown();
+        if let Err(error) = self.backend.shutdown() {
+            let _ = self.transition(Event::TeardownIncomplete);
+            self.failure_code = Some(error.code.to_owned());
+            self.add_banner("failclosed");
+            return Response::error(request.id.as_str(), error.code, Some(error.detail));
+        }
         if let Err(error) = self.backend.disarm() {
             let _ = self.transition(Event::TeardownIncomplete);
             self.failure_code = Some(error.code.to_owned());
@@ -260,7 +258,6 @@ impl Service {
         self.last_summary = Some(self.summary(reached, self.state.as_str()));
         self.banners.clear();
         self.failure_code = None;
-        self.reached_ready = false;
 
         Response::ok(
             request.id.as_str(),
@@ -273,16 +270,21 @@ impl Service {
             return error_response(request, error);
         }
 
-        let _ = self.backend.shutdown();
+        if let Err(error) = self.backend.shutdown() {
+            let _ = self.transition(Event::TeardownIncomplete);
+            self.failure_code = Some(error.code.to_owned());
+            self.add_banner("failclosed");
+            return Response::error(request.id.as_str(), error.code, Some(error.detail));
+        }
         if let Err(error) = self.backend.disarm() {
             let _ = self.transition(Event::TeardownIncomplete);
             self.failure_code = Some(error.code.to_owned());
-        } else {
-            let _ = self.transition(Event::TeardownDone);
-            self.banners.clear();
-            self.failure_code = None;
-            self.reached_ready = false;
+            self.add_banner("failclosed");
+            return Response::error(request.id.as_str(), error.code, Some(error.detail));
         }
+        let _ = self.transition(Event::TeardownDone);
+        self.banners.clear();
+        self.failure_code = None;
 
         Response::ok(
             request.id.as_str(),
@@ -299,7 +301,11 @@ impl Service {
             return error_response(request, error);
         }
 
-        let _ = self.backend.shutdown();
+        if let Err(error) = self.backend.shutdown() {
+            self.failure_code = Some(error.code.to_owned());
+            self.add_banner("failclosed");
+            return Response::error(request.id.as_str(), error.code, Some(error.detail));
+        }
         if let Err(error) = self.backend.disarm() {
             self.failure_code = Some(error.code.to_owned());
             return Response::error(request.id.as_str(), error.code, Some(error.detail));
@@ -308,7 +314,6 @@ impl Service {
         let _ = self.transition(Event::RecoveryDone);
         self.banners.clear();
         self.failure_code = None;
-        self.reached_ready = false;
 
         Response::ok(
             request.id.as_str(),
@@ -331,8 +336,14 @@ impl Service {
 
         match self.settings.apply(&patch) {
             Ok(settings) => {
+                if save_settings(&self.settings_path, &settings).is_err() {
+                    return Response::error(
+                        request.id.as_str(),
+                        "E_SETTINGS_PERSIST",
+                        Some("write"),
+                    );
+                }
                 self.settings = settings;
-                save_settings(&self.settings_path, &self.settings);
                 Response::ok(
                     request.id.as_str(),
                     serde_json::to_value(&self.settings).unwrap_or(Value::Null),
@@ -497,13 +508,21 @@ fn load_settings(path: &Path) -> Settings {
         .unwrap_or_default()
 }
 
-fn save_settings(path: &Path, settings: &Settings) {
+fn save_settings(path: &Path, settings: &Settings) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
+        std::fs::create_dir_all(parent)?;
     }
-    if let Ok(text) = serde_json::to_string_pretty(settings) {
-        let _ = std::fs::write(path, text);
+    let text = serde_json::to_string_pretty(settings)
+        .map_err(|_| std::io::Error::other("settings serialization"))?;
+    #[cfg(windows)]
+    {
+        crate::pipe::secure_write(path, text.as_bytes(), false)?;
     }
+    #[cfg(not(windows))]
+    {
+        std::fs::write(path, text)?;
+    }
+    Ok(())
 }
 
 fn now() -> u64 {

@@ -23,14 +23,16 @@ use windows::Win32::Foundation::{
 };
 use windows::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW,
+    ConvertStringSidToSidW,
 };
 use windows::Win32::Security::{
     GetTokenInformation, SetFileSecurityW, TokenUser, DACL_SECURITY_INFORMATION,
     PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER,
 };
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FlushFileBuffers, ReadFile, WriteFile, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_NONE,
-    OPEN_EXISTING, PIPE_ACCESS_DUPLEX,
+    CreateFileW, FlushFileBuffers, MoveFileExW, ReadFile, WriteFile, CREATE_NEW,
+    FILE_ATTRIBUTE_NORMAL, FILE_SHARE_NONE, FILE_SHARE_READ, MOVEFILE_REPLACE_EXISTING,
+    MOVEFILE_WRITE_THROUGH, OPEN_EXISTING, PIPE_ACCESS_DUPLEX,
 };
 use windows::Win32::System::Pipes::{
     ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, PIPE_READMODE_BYTE, PIPE_TYPE_BYTE,
@@ -77,43 +79,35 @@ fn owner_path() -> PathBuf {
 /// derive the interactive user from its own token.
 fn owner_sid() -> Option<String> {
     if let Ok(value) = std::env::var("TVPN_OWNER_SID") {
-        if !value.is_empty() {
+        let value = value.trim().to_owned();
+        if valid_sid(&value) {
             return Some(value);
         }
     }
-    std::fs::read_to_string(owner_path())
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
+    let value = std::fs::read_to_string(owner_path()).ok()?;
+    let value = value.trim().to_owned();
+    if valid_sid(&value) {
+        Some(value)
+    } else {
+        None
+    }
 }
 
 /// Persists the installing user's SID before the service is created.
 pub fn save_owner_sid(sid: &str) -> io::Result<()> {
-    if let Some(parent) = owner_path().parent() {
-        std::fs::create_dir_all(parent)?;
+    if !valid_sid(sid) {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid SID"));
     }
-    std::fs::write(owner_path(), sid)
+    let path = owner_path();
+    secure_write_inner(&path, sid.as_bytes(), Some(sid), false)
 }
 
-/// Writes the token with a DACL for SYSTEM, the current account and the
-/// optional install owner from `TVPN_OWNER_SID`.
+/// Writes the token with a DACL for SYSTEM, Administrators and the optional
+/// install owner. The file is created with its final DACL in one step.
 pub fn write_token(token: &str) -> io::Result<PathBuf> {
     let path = token_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::write(&path, token)?;
-
-    let sid = current_user_sid()?;
     let owner = owner_sid();
-    let mut sddl = format!("D:P(A;;GA;;;SY)(A;;GA;;;{sid})");
-    if let Some(owner) = owner {
-        if owner != sid {
-            sddl.push_str(&format!("(A;;GR;;;{owner})"));
-        }
-    }
-
-    set_dacl(&path, &sddl)?;
+    secure_write_inner(&path, token.as_bytes(), owner.as_deref(), true)?;
     Ok(path)
 }
 
@@ -184,6 +178,176 @@ fn set_dacl(path: &Path, sddl: &str) -> io::Result<()> {
     } else {
         Err(io::Error::last_os_error())
     }
+}
+
+/// True for the explicit test paths. Production uses `%ProgramData%\TVPN`.
+fn is_test_path(path: &Path) -> bool {
+    #[cfg(debug_assertions)]
+    {
+        if std::env::var_os("TVPN_TOKEN_PATH").is_some()
+            || std::env::var_os("TVPN_SETTINGS_PATH").is_some()
+        {
+            return true;
+        }
+    }
+    path.starts_with(std::env::temp_dir())
+}
+
+fn directory_sddl(owner: Option<&str>) -> String {
+    let mut sddl = "D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)".to_owned();
+    if let Some(owner) = owner {
+        sddl.push_str(&format!("(A;OICI;GR;;;{owner})"));
+    }
+    sddl
+}
+
+fn file_sddl(owner: Option<&str>, owner_read: bool) -> String {
+    let mut sddl = "D:P(A;;GA;;;SY)(A;;GA;;;BA)".to_owned();
+    if owner_read {
+        if let Some(owner) = owner {
+            sddl.push_str(&format!("(A;;GR;;;{owner})"));
+        }
+    }
+    sddl
+}
+
+/// A syntactically valid SID. Rejecting garbage here prevents SDDL injection
+/// through the owner file.
+fn valid_sid(value: &str) -> bool {
+    if value.is_empty() || value.len() > 184 {
+        return false;
+    }
+    let wide_value = wide(value);
+    let mut sid = windows::Win32::Security::PSID::default();
+    let ok = unsafe { ConvertStringSidToSidW(PCWSTR(wide_value.as_ptr()), &mut sid) };
+    if ok.is_err() {
+        return false;
+    }
+    unsafe {
+        let _ = LocalFree(Some(HLOCAL(sid.0)));
+    }
+    true
+}
+
+fn secure_dir_with_owner(owner: Option<&str>) -> io::Result<()> {
+    let dir = token_path()
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "no parent"))?;
+    if is_test_path(&dir) {
+        std::fs::create_dir_all(&dir)?;
+        return Ok(());
+    }
+    std::fs::create_dir_all(&dir)?;
+    set_dacl(&dir, &directory_sddl(owner))
+}
+
+fn secure_write_inner(
+    path: &Path,
+    bytes: &[u8],
+    owner: Option<&str>,
+    owner_read: bool,
+) -> io::Result<()> {
+    if is_test_path(path) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        return std::fs::write(path, bytes);
+    }
+
+    let owner_string = owner.map(str::to_owned).or_else(owner_sid);
+    let owner = owner_string.as_deref();
+    secure_dir_with_owner(owner)?;
+
+    let mut random = [0u8; 6];
+    getrandom::getrandom(&mut random).map_err(|_| io::Error::other("random"))?;
+    let suffix = random
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("tvpn");
+    let temp = path.with_file_name(format!(".{file_name}.{suffix}.tmp"));
+
+    let descriptor = security_descriptor(&file_sddl(owner, owner_read))?;
+    let attributes = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: descriptor.0,
+        bInheritHandle: false.into(),
+    };
+    let wide_temp = wide(&temp.to_string_lossy());
+    let handle = unsafe {
+        CreateFileW(
+            PCWSTR(wide_temp.as_ptr()),
+            GENERIC_WRITE.0,
+            FILE_SHARE_READ,
+            Some(&attributes),
+            CREATE_NEW,
+            FILE_ATTRIBUTE_NORMAL,
+            None,
+        )
+    };
+    let _ = unsafe { LocalFree(Some(HLOCAL(descriptor.0))) };
+    let handle = match handle {
+        Ok(handle) => handle,
+        Err(error) => {
+            let _ = std::fs::remove_file(&temp);
+            return Err(error.into());
+        }
+    };
+
+    let write_result = (|| -> io::Result<()> {
+        let mut written = 0usize;
+        while written < bytes.len() {
+            let mut chunk = 0u32;
+            unsafe {
+                WriteFile(handle, Some(&bytes[written..]), Some(&mut chunk), None)
+                    .map_err(|_| io::Error::last_os_error())?;
+            }
+            if chunk == 0 {
+                return Err(io::Error::new(io::ErrorKind::WriteZero, "short write"));
+            }
+            written += chunk as usize;
+        }
+        unsafe {
+            FlushFileBuffers(handle).map_err(|_| io::Error::last_os_error())?;
+        }
+        Ok(())
+    })();
+
+    if let Err(error) = write_result {
+        unsafe {
+            let _ = CloseHandle(handle);
+        }
+        let _ = std::fs::remove_file(&temp);
+        return Err(error);
+    }
+    unsafe {
+        let _ = CloseHandle(handle);
+    }
+
+    let wide_path = wide(&path.to_string_lossy());
+    let moved = unsafe {
+        MoveFileExW(
+            PCWSTR(wide_temp.as_ptr()),
+            PCWSTR(wide_path.as_ptr()),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if moved.is_err() {
+        let error = io::Error::last_os_error();
+        let _ = std::fs::remove_file(&temp);
+        return Err(error);
+    }
+    Ok(())
+}
+
+/// Writes a small security-critical file with a restrictive DACL and an
+/// atomic replace. Test paths keep plain writes so unit tests can read them.
+pub(crate) fn secure_write(path: &Path, bytes: &[u8], owner_read: bool) -> io::Result<()> {
+    secure_write_inner(path, bytes, None, owner_read)
 }
 
 fn create_pipe(name: &str) -> io::Result<HANDLE> {
@@ -395,5 +559,14 @@ mod tests {
         unsafe {
             let _ = LocalFree(Some(HLOCAL(descriptor.0)));
         }
+    }
+
+    #[test]
+    fn owner_sid_rejects_sddl_injection() {
+        assert!(valid_sid("S-1-5-18"));
+        assert!(valid_sid("S-1-5-21-1-2-3-1001"));
+        assert!(!valid_sid("S-1-5-21-1-2-3-1001)(A;;GA;;;WD"));
+        assert!(!valid_sid(""));
+        assert!(!valid_sid("not-a-sid"));
     }
 }
