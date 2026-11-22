@@ -1,3 +1,6 @@
-//! Privacy shield: MAC address and hostname handling.
-//!
-//! Phase 0 placeholder. Hostname behaviour is decided by spike S3 (docs/SPIKES.md).
+//! Privacy shield primitives: locally administered MAC addresses and the
+//! hostname plan. The actual adapter write is Windows-only and driver
+//! dependent; the VM's synthetic adapter reports it as unsupported.
+
+pub mod hostname;
+pub mod mac;

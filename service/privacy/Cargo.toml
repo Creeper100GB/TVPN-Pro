@@ -7,3 +7,4 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+getrandom = "0.2"
