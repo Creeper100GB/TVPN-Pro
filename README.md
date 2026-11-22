@@ -73,7 +73,7 @@ Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert
 | Oberfläche (Svelte 5, Tauri 2) | Alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Hell/Dunkel, macOS-artiges Fenster |
 | Download (Desktop) | Echt: HTTPS über `reqwest`, Routen **Direkt** und **über Tor** (lokaler SOCKS-Proxy 9150), SHA-256, Mark-of-the-Web, Quarantäne bei Fund, Abbruch löscht die Datei |
 | Download-Liste | Fortschritt, Urteile, Route, Aufräumen |
-| Torrent-Vertrag | Nur über VPN erlaubt, Standard blockiert; die VPN-Route ist noch nicht implementiert |
+| Torrents | **Nicht implementiert.** Magnet-Links werden abgelehnt. Es läuft kein Torrent-Client, es wird keine `.torrent`-Datei gespeichert und es wird nichts geseedet. |
 | Dienst `tvpnd` | Protokoll, Named Pipe mit Token/ACL, enable/disable/panic/recover, Dienstinstallation, echte WFP-/Tor-/Mullvad-Anbindung |
 | WFP | Default-Deny plus Tor-/Mullvad-Permit; in der VM 12 Filter, Verkehr blockiert; Interface-Bindung (S1) offen |
 | Tor | Control-Client und echter `tor.exe`; in der VM Bootstrap 100 und Circuit |
@@ -89,6 +89,7 @@ Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert
 - **S1 / Mullvad**: Die WFP-Permits sind an die App-ID gebunden, nicht an das VPN-Interface. Ohne Mullvad-Konto und -App ist die VPN-zu-Tor-Kette ungeprüft.
 - **MAC-Wechsel**: Primitive und Tests stehen; der Hyper-V-Adapter meldet `unsupported`. Der echte Adapter-Write muss auf physischer Hardware geprüft werden.
 - **Hostname**: S3 verlangt einen Neustart; die UI zeigt `hostname_unchanged`. Die einmalige Neutralisierung im Setup fehlt.
+- **Torrents**: Nicht implementiert. Ein BitTorrent-Client bräuchte die verifizierte VPN-Interface-Bindung und eine Upload-Regel; beides fehlt. Magnet-Links werden abgelehnt, es wird nichts geseedet.
 - **Tor Browser starten**, Block-Erkennung und Fallback-Browser, aria2 und die VPN-Download-Route.
 - **Eigener Wächterprozess**, Tray-Icon und Panik-Hotkey.
 - **Code-Signierung**, USB-Kit und Update-Kanal.

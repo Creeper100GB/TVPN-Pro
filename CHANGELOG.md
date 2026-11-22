@@ -11,7 +11,7 @@
 - Torrents sind ausdrücklich nicht implementiert: kein Client, keine `.torrent`-Datei, kein Seeding. Magnet-Links werden abgelehnt.
 - `install.ps1` verweigert die Installation ohne `SHA256SUMS.txt`.
 - VM-Tests: sauberer Dienststopp mit erhaltener Sperre, Uninstall im bewaffneten Zustand, `check.torproject.org` meldet `IsTor=True` (Exit-IP wird nicht ausgegeben).
-- Winget-Manifest für die manuelle Installation/Update-Prüfung vorbereitet.
+- Winget-Manifest für `0.1.6` ist mit `winget validate` geprüft; der PR `microsoft/winget-pkgs#486611` wartet auf die Microsoft-CLA und die finale Installation-Validierung. Lokal ist `winget install --manifest packaging\winget\...` sofort nutzbar.
 
 ## 0.1.2 – Alpha (2026-11-21)
 
