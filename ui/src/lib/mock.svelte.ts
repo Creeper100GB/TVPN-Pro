@@ -120,21 +120,6 @@ function applyServiceStatus(data: Record<string, unknown>) {
 	if (state !== 'FAILCLOSED') app.failureCode = null;
 }
 
-function mapSummary(raw: Record<string, unknown>): SessionSummary {
-	const downloads = (raw.downloads ?? {}) as Record<string, unknown>;
-	return {
-		startedAt: Date.parse(String(raw.started_at)) || Date.now(),
-		endedAt: Date.parse(String(raw.ended_at)) || Date.now(),
-		stateReached: (raw.state_reached as AppState) ?? 'OFF',
-		clean: Number(downloads.clean ?? 0),
-		warned: Number(downloads.warned ?? 0),
-		quarantined: Number(downloads.quarantined ?? 0),
-		failed: Number(downloads.failed ?? 0),
-		failclosedCount: Number(raw.failclosed_count ?? 0),
-		reasons: Array.isArray(raw.reasons) ? raw.reasons.map(String) : []
-	};
-}
-
 /** Pulls one status snapshot and the settings on first contact. */
 export async function refreshService(): Promise<void> {
 	if (!isDesktop) return;
@@ -460,11 +445,24 @@ export async function disable() {
 		setState('TEARDOWN', 40);
 		try {
 			await serviceCommand('disable', { downloads_policy: 'wait' });
-			const summary = await serviceCommand('get_session_summary');
-			if (summary && Object.keys(summary).length > 0) {
-				app.lastSummary = mapSummary(summary);
-				app.summaryOpen = true;
-			}
+			const rawSummary = await serviceCommand('get_session_summary');
+			const serviceSummary =
+				rawSummary && typeof rawSummary === 'object' ? rawSummary : {};
+			const counts = summarizeDownloads();
+			app.lastSummary = {
+				startedAt: app.since,
+				endedAt: Date.now(),
+				stateReached: (serviceSummary.state_reached as AppState) ?? 'READY',
+				clean: counts.clean,
+				warned: counts.warned,
+				quarantined: counts.quarantined,
+				failed: counts.failed,
+				failclosedCount: Number(serviceSummary.failclosed_count ?? 0),
+				reasons: Array.isArray(serviceSummary.reasons)
+					? serviceSummary.reasons.map(String)
+					: []
+			};
+			app.summaryOpen = true;
 			await refreshService();
 			showToast('Schutz beendet.');
 		} catch (cause) {
