@@ -30,19 +30,19 @@ pscheck:
 
 # UI: type check (Svelte + TypeScript)
 ui-check:
-    bun --cwd ui run check
+    bun --cwd=ui run check
 
 # UI: production build
 ui-build:
-    bun --cwd ui run build
+    bun --cwd=ui run build
 
-# UI: screenshots and layout assertions (needs: bun --cwd ui run preview)
+# UI: screenshots and layout assertions (needs: bun --cwd=ui run preview)
 ui-shots:
-    bun --cwd ui run shots
+    bun --cwd=ui run shots
 
 # End-to-end: UI flow plus a real file download with hash check and cleanup
 e2e:
-    bun --cwd ui run e2e
+    bun --cwd=ui run e2e
 
 # Log redaction gate (self-test against the fixtures)
 redact:
