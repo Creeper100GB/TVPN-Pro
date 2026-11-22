@@ -29,6 +29,30 @@ export interface DownloadFailure {
 	code: string;
 }
 
+/** Real service snapshot. Throws when the service is not installed or running. */
+export async function serviceStatus(): Promise<Record<string, unknown>> {
+	if (!isDesktop) throw new Error('service_unavailable');
+	const { invoke } = await import('@tauri-apps/api/core');
+	return invoke<Record<string, unknown>>('service_status');
+}
+
+/** Fixed command whitelist, mirrored by the Tauri shell and the service. */
+export async function serviceCommand(
+	command: string,
+	args: Record<string, unknown> = {}
+): Promise<Record<string, unknown>> {
+	if (!isDesktop) throw new Error('service_unavailable');
+	const { invoke } = await import('@tauri-apps/api/core');
+	return invoke<Record<string, unknown>>('service_command', { command, args });
+}
+
+/** Installs and starts the Windows service. Must be elevated. */
+export async function installService(): Promise<void> {
+	if (!isDesktop) throw new Error('service_unavailable');
+	const { invoke } = await import('@tauri-apps/api/core');
+	await invoke('service_install');
+}
+
 export async function startDownload(request: DownloadRequest): Promise<void> {
 	if (!isDesktop) return;
 	const { invoke } = await import('@tauri-apps/api/core');

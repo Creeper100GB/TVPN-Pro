@@ -45,6 +45,11 @@
 			icon: Network,
 			tone: 'warn',
 			text: 'VPN-Route aktiv: Peers sehen deine VPN-IP, nicht die echte. Das ist kein Tor-Schutz.'
+		},
+		no_filter: {
+			icon: ShieldAlert,
+			tone: 'danger',
+			text: 'Es ist kein Filter aktiv. Das Netz ist offen. Die Vorprüfung ist fehlgeschlagen.'
 		}
 	};
 

@@ -20,7 +20,8 @@ export type BannerKind =
 	| 'failclosed'
 	| 'mac_unsupported'
 	| 'hostname_unchanged'
-	| 'vpn_route';
+	| 'vpn_route'
+	| 'no_filter';
 
 export type WatchdogLevel = 'ok' | 'warn' | 'critical';
 

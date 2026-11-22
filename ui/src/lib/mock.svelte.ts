@@ -1,5 +1,7 @@
+import { serviceCommand, serviceStatus } from './backend';
 import { COUNTRIES } from './countries';
-import { STATE_META } from './states';
+import { isDesktop } from './desktop';
+import { isArmed, isTransient, STATE_META } from './states';
 import type {
 	AppState,
 	BannerKind,
@@ -73,6 +75,98 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 function sleep(ms: number) {
 	return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+let pollBusy = false;
+let settingsLoaded = false;
+
+function applySettings(raw: Record<string, unknown>) {
+	app.settings = {
+		vpnEnabled: Boolean(raw.vpn_enabled),
+		vpnCountry: String(raw.vpn_country ?? 'random'),
+		torBridges: Boolean(raw.tor_bridges),
+		blockFallback: (raw.block_fallback as Settings['blockFallback']) ?? 'auto',
+		macMode: (raw.mac_mode as Settings['macMode']) ?? 'random',
+		torrentMode: (raw.torrent_mode as Settings['torrentMode']) ?? 'blocked',
+		clipboardWatch: Boolean(raw.clipboard_watch),
+		scannerHashLookup: Boolean(raw.scanner_hash_lookup),
+		portalTimeoutSec: Number(raw.portal_timeout_sec ?? 180)
+	};
+}
+
+function applyServiceStatus(data: Record<string, unknown>) {
+	const state = data.state as AppState;
+	if (!STATE_META[state]) return;
+
+	app.state = state;
+	app.since = Date.parse(String(data.since)) || Date.now();
+	const vpn = (data.vpn ?? {}) as Record<string, unknown>;
+	app.vpnConnected = vpn.state === 'connected';
+	app.country = typeof vpn.country === 'string' ? vpn.country : null;
+	const tor = (data.tor ?? {}) as Record<string, unknown>;
+	app.torBootstrap = Number(tor.bootstrap ?? 0);
+	app.circuit = Boolean(tor.circuit);
+	const watchdog = (data.watchdog ?? {}) as Record<string, unknown>;
+	app.watchdog = (watchdog.level as WatchdogLevel) ?? 'ok';
+	app.banners = Array.isArray(data.banners) ? (data.banners as BannerKind[]) : [];
+	const shield = (data.shield ?? {}) as Record<string, unknown>;
+	app.firewallArmed = Boolean(shield.firewall_armed) || isArmed(state);
+	app.macRandomized = Boolean(shield.mac_randomized);
+	if (state === 'FAILCLOSED' && !app.firewallArmed && !app.banners.includes('no_filter')) {
+		app.banners = [...app.banners, 'no_filter'];
+	}
+	app.progress = STATE_META[state].progress;
+	if (state !== 'FAILCLOSED') app.failureCode = null;
+}
+
+function mapSummary(raw: Record<string, unknown>): SessionSummary {
+	const downloads = (raw.downloads ?? {}) as Record<string, unknown>;
+	return {
+		startedAt: Date.parse(String(raw.started_at)) || Date.now(),
+		endedAt: Date.parse(String(raw.ended_at)) || Date.now(),
+		stateReached: (raw.state_reached as AppState) ?? 'OFF',
+		clean: Number(downloads.clean ?? 0),
+		warned: Number(downloads.warned ?? 0),
+		quarantined: Number(downloads.quarantined ?? 0),
+		failed: Number(downloads.failed ?? 0),
+		failclosedCount: Number(raw.failclosed_count ?? 0),
+		reasons: Array.isArray(raw.reasons) ? raw.reasons.map(String) : []
+	};
+}
+
+/** Pulls one status snapshot and the settings on first contact. */
+export async function refreshService(): Promise<void> {
+	if (!isDesktop) return;
+	const data = await serviceStatus();
+	applyServiceStatus(data);
+	if (!settingsLoaded) {
+		const settings = await serviceCommand('get_settings');
+		applySettings(settings);
+		settingsLoaded = true;
+	}
+}
+
+function startPolling() {
+	if (!isDesktop || pollTimer) return;
+	pollTimer = setInterval(async () => {
+		if (pollBusy || isTransient(app.state)) return;
+		pollBusy = true;
+		try {
+			await refreshService();
+		} catch {
+			// Service not installed or not running. The UI stays honest: OFF.
+		} finally {
+			pollBusy = false;
+		}
+	}, 2500);
+}
+
+if (isDesktop) {
+	setTimeout(() => {
+		void refreshService().catch(() => {});
+	}, 100);
+	startPolling();
 }
 
 function setState(state: AppState, progress?: number) {
@@ -291,6 +385,38 @@ export function clearDownloads() {
 
 export async function enable() {
 	if (app.state !== 'OFF') return;
+
+	if (isDesktop) {
+		app.failureCode = null;
+		app.banners = app.banners.filter((b) => b !== 'failclosed');
+		app.watchdog = 'ok';
+		setState('PREFLIGHT', 6);
+		try {
+			await serviceCommand('enable', { net_mode: 'focus', protect_mode: 'tor_vpn' });
+			await refreshService();
+			const reached = app.state as AppState;
+			if (reached === 'READY' || reached === 'DEGRADED') {
+				showToast('Schutz steht. Nur Tor und Freigaben kommen raus.');
+			}
+		} catch (cause) {
+			const code = String(cause);
+			app.failureCode = code;
+			if (
+				code === 'service_unavailable' ||
+				code === 'service_task' ||
+				code === 'service_lock'
+			) {
+				setState('OFF', 0);
+				showToast('Der Dienst ist nicht erreichbar. Es ist nichts aktiv.');
+			} else {
+				app.banners = [...app.banners.filter((b) => b !== 'failclosed'), 'failclosed'];
+				setState('FAILCLOSED', 100);
+				await refreshService().catch(() => {});
+			}
+		}
+		return;
+	}
+
 	const my = ++generation;
 	app.failureCode = null;
 	app.banners = app.banners.filter((b) => b !== 'failclosed');
@@ -329,6 +455,26 @@ export async function enable() {
 
 export async function disable() {
 	if (app.state === 'OFF' || app.state === 'TEARDOWN') return;
+
+	if (isDesktop) {
+		setState('TEARDOWN', 40);
+		try {
+			await serviceCommand('disable', { downloads_policy: 'wait' });
+			const summary = await serviceCommand('get_session_summary');
+			if (summary && Object.keys(summary).length > 0) {
+				app.lastSummary = mapSummary(summary);
+				app.summaryOpen = true;
+			}
+			await refreshService();
+			showToast('Schutz beendet.');
+		} catch (cause) {
+			app.failureCode = String(cause);
+			setState('FAILCLOSED', 100);
+			await refreshService().catch(() => {});
+		}
+		return;
+	}
+
 	const my = ++generation;
 	const startedAt = app.since;
 
@@ -365,6 +511,22 @@ export async function disable() {
 }
 
 export async function panic() {
+	if (isDesktop) {
+		removeBanner('portal_open');
+		removeBanner('fallback_active');
+		setState('TEARDOWN', 55);
+		app.downloads = [];
+		try {
+			await serviceCommand('panic');
+			await refreshService();
+			showToast('Panik: Netz getrennt.');
+		} catch (cause) {
+			app.failureCode = String(cause);
+			setState('FAILCLOSED', 100);
+		}
+		return;
+	}
+
 	const my = ++generation;
 	removeBanner('portal_open');
 	removeBanner('fallback_active');
@@ -383,6 +545,19 @@ export async function panic() {
 }
 
 export async function recover() {
+	if (isDesktop) {
+		setState('RECOVERY', 40);
+		try {
+			await serviceCommand('recover');
+			await refreshService();
+			showToast('Netz wiederhergestellt. Es ist kein Filter mehr aktiv.');
+		} catch (cause) {
+			app.failureCode = String(cause);
+			setState('FAILCLOSED', 100);
+		}
+		return;
+	}
+
 	const my = ++generation;
 	setState('RECOVERY', 40);
 	await sleep(700);
@@ -406,4 +581,26 @@ export async function recover() {
 export function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
 	app.settings[key] = value;
 	if (key === 'macMode' && value === 'original') app.macRandomized = false;
+
+	if (!isDesktop) return;
+
+	const keys: Record<keyof Settings, string> = {
+		vpnEnabled: 'vpn_enabled',
+		vpnCountry: 'vpn_country',
+		torBridges: 'tor_bridges',
+		blockFallback: 'block_fallback',
+		macMode: 'mac_mode',
+		torrentMode: 'torrent_mode',
+		clipboardWatch: 'clipboard_watch',
+		scannerHashLookup: 'scanner_hash_lookup',
+		portalTimeoutSec: 'portal_timeout_sec'
+	};
+
+	void serviceCommand('set_settings', { settings: { [keys[key]]: value } })
+		.then(() => showToast('Einstellung gespeichert.'))
+		.catch((cause) => {
+			showToast('Nicht gespeichert: ' + String(cause));
+			settingsLoaded = false;
+			void refreshService().catch(() => {});
+		});
 }

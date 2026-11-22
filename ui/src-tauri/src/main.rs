@@ -6,15 +6,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod download;
+mod service;
 
 use download::Downloads;
+use service::ServiceClient;
 
 fn main() {
     tauri::Builder::default()
         .manage(Downloads::default())
+        .manage(ServiceClient::default())
         .invoke_handler(tauri::generate_handler![
             download::download_start,
-            download::download_cancel
+            download::download_cancel,
+            service::service_status,
+            service::service_command,
+            service::service_install
         ])
         .run(tauri::generate_context!())
         .expect("failed to run TVPN Pro");

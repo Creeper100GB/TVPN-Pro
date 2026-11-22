@@ -124,12 +124,27 @@ async fn transfer(
     })
     .await?;
 
-    let verdict = scan(&path).await;
+    let mut final_path = path.clone();
+    let mut verdict = scan(&path).await;
+    if verdict == "threat" {
+        match quarantine(app, id, &path) {
+            Ok(target) => final_path = target,
+            Err(_) => {
+                // If quarantine cannot be created, do not leave a known
+                // threat in the download folder.
+                let _ = std::fs::remove_file(&path);
+                verdict = "failed".to_owned();
+            }
+        }
+    } else if verdict == "clean" {
+        let _ = mark_of_the_web(&path);
+    }
+
     let _ = app.emit(
         "download-done",
         Done {
             id: id.to_owned(),
-            path: path.to_string_lossy().into_owned(),
+            path: final_path.to_string_lossy().into_owned(),
             bytes: received,
             sha256: digest,
             verdict,
@@ -215,6 +230,46 @@ where
         .collect();
 
     Ok((received, digest))
+}
+
+/// Mark-of-the-Web so SmartScreen and Office still warn after the download.
+fn mark_of_the_web(path: &Path) -> std::io::Result<()> {
+    std::fs::write(
+        format!("{}:Zone.Identifier", path.display()),
+        b"[ZoneTransfer]\r\nZoneId=3\r\n",
+    )
+}
+
+/// Moves a known threat out of the download folder under a generated name.
+fn quarantine(app: &AppHandle, id: &str, path: &Path) -> Result<PathBuf, String> {
+    let safe: String = id
+        .chars()
+        .filter(|character| {
+            character.is_ascii_alphanumeric() || *character == '-' || *character == '_'
+        })
+        .collect();
+    let safe = if safe.is_empty() {
+        "download".to_owned()
+    } else {
+        safe
+    };
+
+    let folder = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|_| "quarantine_dir".to_owned())?
+        .join("quarantine");
+    std::fs::create_dir_all(&folder).map_err(|_| "quarantine_dir".to_owned())?;
+    let target = folder.join(format!("{safe}.bin"));
+
+    match std::fs::rename(path, &target) {
+        Ok(()) => Ok(target),
+        Err(_) => {
+            std::fs::copy(path, &target).map_err(|_| "quarantine_move".to_owned())?;
+            let _ = std::fs::remove_file(path);
+            Ok(target)
+        }
+    }
 }
 
 fn destination(app: &AppHandle, url: &str) -> Result<PathBuf, String> {

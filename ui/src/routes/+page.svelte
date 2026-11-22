@@ -35,6 +35,13 @@
 	import { APP_VERSION } from '../lib/version';
 
 	const meta = $derived(STATE_META[app.state]);
+	const noFilter = $derived(app.state === 'FAILCLOSED' && !app.firewallArmed);
+	const stateLabel = $derived(noFilter ? 'Vorprüfung fehlgeschlagen' : meta.label);
+	const stateHint = $derived(
+		noFilter
+			? 'Es ist kein Filter aktiv. Das Netz ist offen. Prüfe Tor, Mullvad und die Einstellungen.'
+			: meta.hint
+	);
 	const busy = $derived(isTransient(app.state));
 	const tone = $derived(meta.tone);
 	const primaryDisabled = $derived(busy);
@@ -189,7 +196,7 @@
 
 		<div class="alpha" role="note">
 			<ShieldAlert size={13} />
-			Alpha-Vorschau: Firewall, VPN und Tor fehlen noch. Der Knopf simuliert nur den Ablauf.
+			Alpha: Der Dienst setzt Firewall und Tor. Ohne Mullvad-Konto bleibt die VPN-Kette ungeprüft.
 		</div>
 
 		<div class="content">
@@ -206,8 +213,8 @@
 				/>
 
 				<div class="headline">
-					<h2 id="state-title" aria-live="polite">{meta.label}</h2>
-					<p class="hint">{meta.hint}</p>
+					<h2 id="state-title" aria-live="polite">{stateLabel}</h2>
+					<p class="hint">{stateHint}</p>
 				</div>
 
 				{#if app.banners.length > 0}
@@ -300,7 +307,7 @@
 		<footer class="statusbar">
 			<span class="status-left">
 				<span class="dot" style="background: {TONE_VAR[tone]}" aria-hidden="true"></span>
-				{meta.label} · seit {startLabel}
+				{stateLabel} · seit {startLabel}
 			</span>
 			<span class="status-right">
 				<span class="mode">Fokus-Modus · v{APP_VERSION}</span>
