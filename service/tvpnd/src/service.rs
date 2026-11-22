@@ -3,7 +3,7 @@
 use std::ffi::OsString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use windows_service::define_windows_service;
 use windows_service::service::{
@@ -59,6 +59,15 @@ pub fn uninstall() -> Result<()> {
         ServiceAccess::STOP | ServiceAccess::DELETE | ServiceAccess::QUERY_STATUS,
     )?;
     let _ = service.stop();
+
+    // DeleteService fails while the SCM still considers the service running.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        match service.query_status() {
+            Ok(status) if status.current_state == ServiceState::Stopped => break,
+            _ => std::thread::sleep(Duration::from_millis(200)),
+        }
+    }
     service.delete()?;
     Ok(())
 }
@@ -83,6 +92,7 @@ fn run_service() -> Result<()> {
             ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
             ServiceControl::Stop => {
                 handler_stop.store(true, Ordering::SeqCst);
+                crate::pipe::wake();
                 ServiceControlHandlerResult::NoError
             }
             _ => ServiceControlHandlerResult::NotImplemented,

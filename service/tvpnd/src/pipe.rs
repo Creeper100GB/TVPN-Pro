@@ -17,8 +17,8 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::{
-    CloseHandle, LocalFree, ERROR_BROKEN_PIPE, ERROR_PIPE_CONNECTED, HANDLE, HLOCAL,
-    INVALID_HANDLE_VALUE,
+    CloseHandle, LocalFree, ERROR_BROKEN_PIPE, ERROR_PIPE_CONNECTED, GENERIC_READ, GENERIC_WRITE,
+    HANDLE, HLOCAL, INVALID_HANDLE_VALUE,
 };
 use windows::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW,
@@ -28,7 +28,8 @@ use windows::Win32::Security::{
     PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER,
 };
 use windows::Win32::Storage::FileSystem::{
-    FlushFileBuffers, ReadFile, WriteFile, PIPE_ACCESS_DUPLEX,
+    CreateFileW, FlushFileBuffers, ReadFile, WriteFile, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_NONE,
+    OPEN_EXISTING, PIPE_ACCESS_DUPLEX,
 };
 use windows::Win32::System::Pipes::{
     ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, PIPE_READMODE_BYTE, PIPE_TYPE_BYTE,
@@ -221,6 +222,28 @@ fn create_pipe(name: &str) -> io::Result<HANDLE> {
     }
 }
 
+/// Connects once to unblock `ConnectNamedPipe` when the SCM asks the service
+/// to stop while no UI is connected.
+pub fn wake() {
+    let name = wide(&pipe_name());
+    let result = unsafe {
+        CreateFileW(
+            PCWSTR(name.as_ptr()),
+            GENERIC_READ.0 | GENERIC_WRITE.0,
+            FILE_SHARE_NONE,
+            None,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            None,
+        )
+    };
+    if let Ok(handle) = result {
+        unsafe {
+            let _ = CloseHandle(handle);
+        }
+    }
+}
+
 /// Runs the pipe server until the process is stopped.
 pub fn run(token: &str) -> io::Result<()> {
     run_with_stop(token, &AtomicBool::new(false))
@@ -245,6 +268,13 @@ pub fn run_with_stop(token: &str, stop: &AtomicBool) -> io::Result<()> {
                 }
                 continue;
             }
+        }
+
+        if stop.load(Ordering::SeqCst) {
+            unsafe {
+                let _ = CloseHandle(handle);
+            }
+            break;
         }
 
         service.reset_auth();
