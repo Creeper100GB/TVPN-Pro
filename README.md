@@ -15,7 +15,9 @@ Ein Klick startet den Dienst: Firewall scharf, Tor starten, Downloads prüfen, a
 
 [**Portable EXE herunterladen**](https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/TVPN-Pro-Windows-x64-Portable.exe)
 
-**Mit Startmenü-Eintrag und Deinstaller.** Datei herunterladen, doppelklicken, Installer bestätigen.
+Die portable EXE ist nur die Oberfläche; sie enthält weder Dienst noch Tor und schützt allein nichts. Für den echten Schutz den Installer verwenden.
+
+**Mit Dienst, Tor, Startmenü-Eintrag und Deinstaller.** Datei herunterladen, doppelklicken, Installer bestätigen.
 
 [**Installer herunterladen**](https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/TVPN-Pro-Windows-x64-Setup.exe)
 
