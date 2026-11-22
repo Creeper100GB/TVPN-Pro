@@ -46,13 +46,6 @@ export async function serviceCommand(
 	return invoke<Record<string, unknown>>('service_command', { command, args });
 }
 
-/** Installs and starts the Windows service. Must be elevated. */
-export async function installService(): Promise<void> {
-	if (!isDesktop) throw new Error('service_unavailable');
-	const { invoke } = await import('@tauri-apps/api/core');
-	await invoke('service_install');
-}
-
 export async function startDownload(request: DownloadRequest): Promise<void> {
 	if (!isDesktop) return;
 	const { invoke } = await import('@tauri-apps/api/core');
@@ -67,6 +60,12 @@ export async function cancelDownload(id: string): Promise<void> {
 	if (!isDesktop) return;
 	const { invoke } = await import('@tauri-apps/api/core');
 	await invoke('download_cancel', { id });
+}
+
+export async function cancelAllDownloads(): Promise<void> {
+	if (!isDesktop) return;
+	const { invoke } = await import('@tauri-apps/api/core');
+	await invoke('download_cancel_all');
 }
 
 export async function watchDownloads(handlers: {

@@ -21,16 +21,13 @@
 
 	const routeOptions = [
 		{ value: 'tor' as DownloadRoute, label: 'Über Tor' },
-		{ value: 'direct' as DownloadRoute, label: 'Direkt' },
-		{ value: 'vpn' as DownloadRoute, label: 'Über VPN' }
+		{ value: 'direct' as DownloadRoute, label: 'Direkt' }
 	];
 
 	const routeWarning = $derived(
 		route === 'direct'
 			? 'Ungeschützt: der Server sieht deine echte IP. Nur für Images mit Prüfsumme.'
-			: route === 'vpn'
-				? 'Braucht den Dienst. Torrents laufen erst mit der VPN-Schicht.'
-				: 'Braucht einen Tor-Proxy auf 127.0.0.1:9150.'
+			: 'Braucht einen Tor-Proxy auf 127.0.0.1:9150.'
 	);
 
 	const verdictLabel: Record<ScanVerdict, string> = {
@@ -93,7 +90,7 @@
 <Sheet
 	bind:open={app.downloadsOpen}
 	title="Downloads"
-	subtitle="Über Tor läuft alles durch den Tunnel. Über VPN nur große Images, ohne Tor-Schutz."
+	subtitle="Über Tor läuft alles durch den Tunnel. Direkt ist ungeschützt."
 >
 	<div class="route-row">
 		<Segmented
@@ -118,7 +115,7 @@
 		<input
 			bind:value={url}
 			type="text"
-			placeholder={route === 'vpn' ? 'https://… oder magnet:?xt=urn:btih:…' : 'https://…'}
+			placeholder="https://…"
 			aria-label="Download-URL"
 			autocomplete="off"
 			spellcheck="false"

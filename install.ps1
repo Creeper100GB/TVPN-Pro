@@ -99,7 +99,7 @@ try {
         Write-Host "SHA-256: $actual"
     }
     else {
-        Write-Warning 'Keine SHA256SUMS.txt im Release, daher keine SHA-256-Kontrolle.'
+        throw 'Keine SHA256SUMS.txt im Release. Installation ohne Prüfsumme wird verweigert.'
     }
 
     if ($NoInstall) {

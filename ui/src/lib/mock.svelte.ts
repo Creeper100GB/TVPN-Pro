@@ -1,4 +1,4 @@
-import { serviceCommand, serviceStatus } from './backend';
+import { cancelAllDownloads, serviceCommand, serviceStatus } from './backend';
 import { COUNTRIES } from './countries';
 import { isDesktop } from './desktop';
 import { isArmed, isTransient, STATE_META } from './states';
@@ -25,6 +25,7 @@ interface AppStore {
 	macRandomized: boolean;
 	firewallArmed: boolean;
 	serviceReachable: boolean;
+	serviceEverReachable: boolean;
 	watchdog: WatchdogLevel;
 	banners: BannerKind[];
 	downloads: DownloadItem[];
@@ -60,6 +61,7 @@ export const app = $state<AppStore>({
 	macRandomized: false,
 	firewallArmed: false,
 	serviceReachable: true,
+	serviceEverReachable: false,
 	watchdog: 'ok',
 	banners: [],
 	downloads: [],
@@ -137,6 +139,7 @@ export async function refreshService(): Promise<void> {
 	if (!isDesktop) return;
 	const data = await serviceStatus();
 	app.serviceReachable = true;
+	app.serviceEverReachable = true;
 	applyServiceStatus(data);
 	if (!settingsLoaded) {
 		const settings = await serviceCommand('get_settings');
@@ -207,7 +210,7 @@ export function explainFailure(code: string): string {
 		E_TOR_CIRCUIT_FAILED: 'Tor hat keinen Circuit. Netzwerk prüfen.',
 		E_VPN_CONNECT_TIMEOUT: 'Die VPN-Verbindung kam nicht zustande.',
 		E_WATCHDOG_CRITICAL: 'Der Wächter hat eine Komponente verloren. Das Netz ist gesperrt.',
-		service_unavailable: 'Der Dienst ist nicht erreichbar. Ist TVPN Pro installiert?',
+		service_unavailable: 'Der Dienst ist nicht installiert oder läuft nicht. Installiere TVPN Pro erneut oder starte den Dienst.',
 		service_token: 'Der Dienst läuft, aber die UI kann das Sitzungs-Token nicht lesen.'
 	};
 	return messages[code] ?? 'Unbekannter Fehler. Details stehen im Code.';
@@ -302,14 +305,13 @@ export function parseDownloadInput(raw: string, route: DownloadRoute): ParsedDow
 
 	const isMagnet = value.toLowerCase().startsWith('magnet:');
 	if (isMagnet) {
-		if (route !== 'vpn') {
-			return { ok: false, error: 'Torrents laufen nur über die VPN-Route.', label: '', source: 'torrent' };
-		}
-		const magnetError = validateMagnet(value);
-		if (magnetError) {
-			return { ok: false, error: magnetError, label: '', source: 'torrent' };
-		}
-		return { ok: true, error: null, label: magnetLabel(value), source: 'torrent' };
+		return {
+			ok: false,
+			error:
+				'Torrents sind nicht implementiert. Es läuft kein Torrent-Client, es wird keine .torrent-Datei gespeichert und es wird nichts geseedet.',
+			label: '',
+			source: 'torrent'
+		};
 	}
 
 	const urlError = validateDownloadUrl(value);
@@ -353,26 +355,12 @@ export function patchDownload(id: string, patch: Partial<DownloadItem>) {
 
 function labelFromUrl(raw: string): string {
 	const parsed = new URL(raw);
-	return decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() ?? 'download.bin');
-}
-
-function magnetLabel(raw: string): string {
-	const match = /[?&]dn=([^&]+)/i.exec(raw);
-	if (!match) return 'Torrent-Image';
+	const last = parsed.pathname.split('/').filter(Boolean).pop() ?? 'download.bin';
 	try {
-		return decodeURIComponent(match[1].replace(/\+/g, ' '));
+		return decodeURIComponent(last);
 	} catch {
-		return 'Torrent-Image';
+		return last;
 	}
-}
-
-/** Mirrors the contract's magnet rule: only `xt=urn:btih:` with 40 hex or 32 base32. */
-export function validateMagnet(raw: string): string | null {
-	if (!raw.toLowerCase().startsWith('magnet:?')) return 'Das ist kein Magnet-Link.';
-	const hash = /(?:^|&)xt=urn:btih:([^&]+)/i.exec(raw)?.[1] ?? '';
-	const hex = /^[0-9a-f]{40}$/i.test(hash);
-	const base32 = /^[a-z2-7]{32}$/i.test(hash);
-	return hex || base32 ? null : 'Der Info-Hash fehlt oder ist ungültig.';
 }
 
 async function runDownload(id: string) {
@@ -438,8 +426,13 @@ export async function enable() {
 				code === 'service_lock'
 			) {
 				markServiceLost();
-				setState('FAILCLOSED', 100);
-				showToast('Der Dienst ist nicht erreichbar. Der Firewall-Status ist unbekannt.');
+				if (app.serviceEverReachable) {
+					setState('FAILCLOSED', 100);
+					showToast('Der Dienst ist nicht erreichbar. Der Firewall-Status ist unbekannt.');
+				} else {
+					setState('OFF', 0);
+					showToast('Der Dienst ist nicht installiert oder läuft nicht.');
+				}
 			} else {
 				app.banners = [...app.banners.filter((b) => b !== 'failclosed'), 'failclosed'];
 				setState('FAILCLOSED', 100);
@@ -491,6 +484,7 @@ export async function disable() {
 	if (isDesktop) {
 		setState('TEARDOWN', 40);
 		try {
+			await cancelAllDownloads().catch(() => {});
 			await serviceCommand('disable', { downloads_policy: 'wait' });
 			const rawSummary = await serviceCommand('get_session_summary');
 			const serviceSummary =
@@ -563,6 +557,7 @@ export async function panic() {
 		setState('TEARDOWN', 55);
 		app.downloads = [];
 		try {
+			await cancelAllDownloads().catch(() => {});
 			await serviceCommand('panic');
 			await refreshService();
 			showToast('Panik: Schutz beendet, Netz wieder offen.');

@@ -20,6 +20,20 @@ use tokio::io::AsyncWriteExt;
 #[derive(Default)]
 pub struct Downloads(Mutex<HashMap<String, Arc<AtomicBool>>>);
 
+impl Downloads {
+    pub fn cancel_all(&self) {
+        if let Ok(map) = self.0.lock() {
+            for flag in map.values() {
+                flag.store(true, Ordering::Relaxed);
+            }
+        }
+    }
+}
+
+/// Hard ceiling for a single download. Prevents a malicious server from
+/// filling the disk before the scan runs.
+const MAX_DOWNLOAD_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Progress {
@@ -51,6 +65,11 @@ pub fn download_cancel(state: State<'_, Downloads>, id: String) {
             flag.store(true, Ordering::Relaxed);
         }
     }
+}
+
+#[tauri::command]
+pub fn download_cancel_all(state: State<'_, Downloads>) {
+    state.cancel_all();
 }
 
 #[tauri::command]
@@ -110,9 +129,10 @@ async fn transfer(
     };
 
     let path = destination(app, url)?;
+    let staging = staging_path(app, id)?;
     let progress_id = id.to_owned();
 
-    let (received, digest) = fetch_to_file(url, &path, proxy, cancel, |bytes, total| {
+    let fetched = fetch_to_file(url, &staging, proxy, cancel, |bytes, total| {
         let _ = app.emit(
             "download-progress",
             Progress {
@@ -122,22 +142,34 @@ async fn transfer(
             },
         );
     })
-    .await?;
+    .await;
+
+    let (received, digest) = match fetched {
+        Ok(value) => value,
+        Err(error) => {
+            let _ = tokio::fs::remove_file(&staging).await;
+            return Err(error);
+        }
+    };
 
     let mut final_path = path.clone();
-    let mut verdict = scan(&path).await;
+    let mut verdict = scan(&staging).await;
     if verdict == "threat" {
-        match quarantine(app, id, &path) {
+        match quarantine(app, id, &staging) {
             Ok(target) => final_path = target,
             Err(_) => {
-                // If quarantine cannot be created, do not leave a known
-                // threat in the download folder.
-                let _ = std::fs::remove_file(&path);
+                let _ = std::fs::remove_file(&staging);
                 verdict = "failed".to_owned();
             }
         }
-    } else if verdict == "clean" {
-        let _ = mark_of_the_web(&path);
+    } else {
+        if move_into_place(&staging, &path).is_err() {
+            let _ = std::fs::remove_file(&staging);
+            return Err("move".to_owned());
+        }
+        if verdict == "clean" {
+            let _ = mark_of_the_web(&path);
+        }
     }
 
     let _ = app.emit(
@@ -175,7 +207,18 @@ pub async fn fetch_to_file<F>(
 where
     F: Fn(u64, Option<u64>) + Send + Sync,
 {
-    let mut builder = reqwest::Client::builder().user_agent("TVPN-Pro/0.0.0");
+    let mut builder = reqwest::Client::builder()
+        .user_agent("TVPN-Pro/0.0.0")
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() > 8 {
+                return attempt.stop();
+            }
+            if tvpn_core::url::validate(attempt.url().as_str()).is_ok() {
+                attempt.follow()
+            } else {
+                attempt.stop()
+            }
+        }));
     if let Some(proxy) = proxy {
         builder = builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| "proxy".to_owned())?);
     }
@@ -192,6 +235,9 @@ where
     }
 
     let total = response.content_length();
+    if total.is_some_and(|value| value > MAX_DOWNLOAD_BYTES) {
+        return Err("too_large".to_owned());
+    }
     let mut file = tokio::fs::File::create(dest)
         .await
         .map_err(|_| "create_file".to_owned())?;
@@ -208,6 +254,11 @@ where
             return Err("cancelled".to_owned());
         }
         let chunk = chunk.map_err(|_| "read".to_owned())?;
+        if received.saturating_add(chunk.len() as u64) > MAX_DOWNLOAD_BYTES {
+            drop(file);
+            let _ = tokio::fs::remove_file(dest).await;
+            return Err("too_large".to_owned());
+        }
         hasher.update(&chunk);
         file.write_all(&chunk)
             .await
@@ -272,6 +323,48 @@ fn quarantine(app: &AppHandle, id: &str, path: &Path) -> Result<PathBuf, String>
     }
 }
 
+fn safe_id(id: &str) -> String {
+    let safe: String = id
+        .chars()
+        .filter(|character| {
+            character.is_ascii_alphanumeric() || *character == '-' || *character == '_'
+        })
+        .collect();
+    if safe.is_empty() {
+        "download".to_owned()
+    } else {
+        safe
+    }
+}
+
+fn staging_path(app: &AppHandle, id: &str) -> Result<PathBuf, String> {
+    let folder = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|_| "staging_dir".to_owned())?
+        .join("staging");
+    std::fs::create_dir_all(&folder).map_err(|_| "staging_dir".to_owned())?;
+    Ok(folder.join(format!("{}.part", safe_id(id))))
+}
+
+fn move_into_place(from: &Path, to: &Path) -> Result<(), ()> {
+    if std::fs::rename(from, to).is_ok() {
+        return Ok(());
+    }
+    std::fs::copy(from, to).map_err(|_| ())?;
+    std::fs::remove_file(from).map_err(|_| ())?;
+    Ok(())
+}
+
+fn is_reserved_windows_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or(name).to_ascii_uppercase();
+    matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && stem.as_bytes()[3].is_ascii_digit()
+            && stem.as_bytes()[3] != b'0')
+}
+
 fn destination(app: &AppHandle, url: &str) -> Result<PathBuf, String> {
     let folder = app
         .path()
@@ -280,15 +373,37 @@ fn destination(app: &AppHandle, url: &str) -> Result<PathBuf, String> {
         .join("TVPN");
     std::fs::create_dir_all(&folder).map_err(|_| "mkdir".to_owned())?;
 
-    let name = filename_from_url(url);
+    let mut name = filename_from_url(url);
+    if is_reserved_windows_name(&name) {
+        name = format!("download-{name}");
+    }
+    if name.len() > 180 {
+        let extension = Path::new(&name)
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("");
+        let stem = Path::new(&name)
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .unwrap_or("download");
+        let keep = 180usize.saturating_sub(extension.len() + 1);
+        let stem: String = stem.chars().take(keep).collect();
+        name = if extension.is_empty() {
+            stem
+        } else {
+            format!("{stem}.{extension}")
+        };
+    }
     let stem = Path::new(&name)
         .file_stem()
         .and_then(|value| value.to_str())
-        .unwrap_or("download");
+        .unwrap_or("download")
+        .to_owned();
     let extension = Path::new(&name)
         .extension()
         .and_then(|value| value.to_str())
-        .unwrap_or("bin");
+        .unwrap_or("bin")
+        .to_owned();
 
     let mut candidate = folder.join(&name);
     let mut counter = 1;

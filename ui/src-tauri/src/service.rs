@@ -41,37 +41,19 @@ fn programdata() -> PathBuf {
 }
 
 fn token_path() -> PathBuf {
-    std::env::var("TVPN_TOKEN_PATH")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| programdata().join("session.token"))
+    #[cfg(debug_assertions)]
+    if let Ok(path) = std::env::var("TVPN_TOKEN_PATH") {
+        return PathBuf::from(path);
+    }
+    programdata().join("session.token")
 }
 
 fn pipe_name() -> String {
-    std::env::var("TVPN_PIPE_NAME").unwrap_or_else(|_| r"\\.\pipe\tvpn-pro-v0".to_owned())
-}
-
-pub fn service_exe() -> Result<PathBuf, String> {
-    if let Ok(path) = std::env::var("TVPN_SERVICE_EXE") {
-        return Ok(PathBuf::from(path));
+    #[cfg(debug_assertions)]
+    if let Ok(name) = std::env::var("TVPN_PIPE_NAME") {
+        return name;
     }
-    let parent = std::env::current_exe()
-        .map_err(|_| "service_exe".to_owned())?
-        .parent()
-        .map(PathBuf::from)
-        .ok_or_else(|| "service_exe".to_owned())?;
-    let local = parent.join("tvpnd.exe");
-    if local.exists() {
-        return Ok(local);
-    }
-    let bundled = parent.join("resources").join("tvpnd.exe");
-    if bundled.exists() {
-        return Ok(bundled);
-    }
-    let installed = PathBuf::from(r"C:\Program Files\TVPN\tvpnd.exe");
-    if installed.exists() {
-        return Ok(installed);
-    }
-    Err("service_exe_missing".to_owned())
+    r"\\.\pipe\tvpn-pro-v0".to_owned()
 }
 
 #[cfg(windows)]
@@ -229,24 +211,4 @@ pub async fn service_command(
 pub fn panic_now(client: &ServiceClient) -> Result<Value, String> {
     let _guard = client.0.lock().map_err(|_| "service_lock".to_owned())?;
     call("panic", json!({}))
-}
-
-/// Installs and starts the service. Must run elevated.
-#[tauri::command]
-pub async fn service_install() -> Result<(), String> {
-    let exe = service_exe()?;
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        std::process::Command::new(exe)
-            .arg("--install")
-            .status()
-            .map(|status| status.success())
-            .map_err(|_| "service_install_failed".to_owned())
-    })
-    .await;
-    match result {
-        Ok(Ok(true)) => Ok(()),
-        Ok(Ok(false)) => Err("service_install_failed".to_owned()),
-        Ok(Err(code)) => Err(code),
-        Err(_) => Err("service_task".to_owned()),
-    }
 }

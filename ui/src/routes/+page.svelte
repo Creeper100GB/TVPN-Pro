@@ -37,7 +37,9 @@
 	import { APP_VERSION } from '../lib/version';
 
 	const meta = $derived(STATE_META[app.state]);
-	const serviceDown = $derived(!app.serviceReachable && app.state !== 'OFF');
+	const serviceDown = $derived(
+		!app.serviceReachable && app.serviceEverReachable && app.state !== 'OFF'
+	);
 	const noFilter = $derived(app.state === 'FAILCLOSED' && !app.firewallArmed);
 	const torOnly = $derived(app.state === 'DEGRADED' && !app.settings.vpnEnabled);
 	const stateLabel = $derived(

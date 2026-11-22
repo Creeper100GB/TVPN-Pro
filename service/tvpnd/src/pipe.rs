@@ -60,6 +60,7 @@ pub fn generate_token() -> String {
 }
 
 fn token_path() -> PathBuf {
+    #[cfg(debug_assertions)]
     if let Ok(path) = std::env::var("TVPN_TOKEN_PATH") {
         return PathBuf::from(path);
     }
@@ -68,7 +69,11 @@ fn token_path() -> PathBuf {
 }
 
 fn pipe_name() -> String {
-    std::env::var("TVPN_PIPE_NAME").unwrap_or_else(|_| r"\\.\pipe\tvpn-pro-v0".to_owned())
+    #[cfg(debug_assertions)]
+    if let Ok(name) = std::env::var("TVPN_PIPE_NAME") {
+        return name;
+    }
+    r"\\.\pipe\tvpn-pro-v0".to_owned()
 }
 
 fn owner_path() -> PathBuf {
@@ -78,6 +83,7 @@ fn owner_path() -> PathBuf {
 /// The SID of the installing user. The service runs as SYSTEM, so it cannot
 /// derive the interactive user from its own token.
 fn owner_sid() -> Option<String> {
+    #[cfg(debug_assertions)]
     if let Ok(value) = std::env::var("TVPN_OWNER_SID") {
         let value = value.trim().to_owned();
         if valid_sid(&value) {

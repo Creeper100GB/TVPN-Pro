@@ -177,7 +177,7 @@ impl Service {
             return error_response(request, error);
         }
 
-        if let Err(error) = self.backend.arm() {
+        if let Err(error) = self.backend.arm(self.settings.vpn_enabled) {
             return self.fail(request, error);
         }
 
@@ -199,6 +199,10 @@ impl Service {
 
         if let Err(error) = self.transition(Event::VpnUp) {
             return error_response(request, error);
+        }
+
+        if let Err(error) = self.backend.permit_protected_apps() {
+            return self.fail(request, error);
         }
 
         if let Err(error) = self.backend.tor_start() {
@@ -479,6 +483,7 @@ fn error_response(request: &Request, error: BackendError) -> Response {
 }
 
 fn settings_path() -> PathBuf {
+    #[cfg(debug_assertions)]
     if let Ok(path) = std::env::var("TVPN_SETTINGS_PATH") {
         return PathBuf::from(path);
     }

@@ -73,9 +73,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             download::download_start,
             download::download_cancel,
+            download::download_cancel_all,
             service::service_status,
-            service::service_command,
-            service::service_install
+            service::service_command
         ])
         .run(tauri::generate_context!())
         .expect("failed to run TVPN Pro");

@@ -54,7 +54,8 @@ pub trait Backend: Send {
         false
     }
     fn preflight(&mut self, settings: &Settings) -> Result<(), BackendError>;
-    fn arm(&mut self) -> Result<(), BackendError>;
+    fn arm(&mut self, vpn_enabled: bool) -> Result<(), BackendError>;
+    fn permit_protected_apps(&mut self) -> Result<(), BackendError>;
     fn randomize_mac(&mut self) -> Result<bool, BackendError>;
     fn vpn_connect(&mut self, country: &str) -> Result<(), BackendError>;
     fn tor_start(&mut self) -> Result<(), BackendError>;
@@ -93,8 +94,12 @@ impl Backend for MockBackend {
         Ok(())
     }
 
-    fn arm(&mut self) -> Result<(), BackendError> {
+    fn arm(&mut self, _vpn_enabled: bool) -> Result<(), BackendError> {
         self.armed = true;
+        Ok(())
+    }
+
+    fn permit_protected_apps(&mut self) -> Result<(), BackendError> {
         Ok(())
     }
 
@@ -197,7 +202,8 @@ impl RealBackend {
             .join("TVPN")
     }
 
-    pub fn tor_path() -> PathBuf {
+    fn tor_path() -> PathBuf {
+        #[cfg(debug_assertions)]
         if let Ok(path) = std::env::var("TVPN_TOR_EXE") {
             return PathBuf::from(path);
         }
@@ -213,7 +219,15 @@ impl RealBackend {
         PathBuf::from(r"C:\Program Files\TVPN\tor\tor.exe")
     }
 
+    fn verify_tor() -> Result<(), BackendError> {
+        // Pin the exact Tor Expert Bundle binary that the installer stages.
+        const TOR_SHA256: &str = "8c38513b3c4584154158e7c584f4144849dc679a64cd679553d72dad28230c54";
+        tvpn_launcher::verify_sha256(&Self::tor_path(), TOR_SHA256)
+            .map_err(|_| BackendError::new("E_PREFLIGHT_HASH_MISMATCH", "tor"))
+    }
+
     pub fn mullvad_path() -> PathBuf {
+        #[cfg(debug_assertions)]
         if let Ok(path) = std::env::var("TVPN_MULLVAD_EXE") {
             return PathBuf::from(path);
         }
@@ -233,7 +247,11 @@ impl RealBackend {
     }
 
     fn tor_address() -> String {
-        std::env::var("TVPN_TOR_CONTROL").unwrap_or_else(|_| "127.0.0.1:9051".to_owned())
+        #[cfg(debug_assertions)]
+        if let Ok(value) = std::env::var("TVPN_TOR_CONTROL") {
+            return value;
+        }
+        "127.0.0.1:9051".to_owned()
     }
 
     fn read_status(&mut self) -> (bool, Option<String>) {
@@ -288,6 +306,7 @@ impl Backend for RealBackend {
         if !tor.exists() {
             return Err(BackendError::new("E_PREFLIGHT_MISSING_COMPONENT", "tor"));
         }
+        Self::verify_tor()?;
 
         if settings.vpn_enabled {
             let mullvad = Self::mullvad_path();
@@ -319,7 +338,7 @@ impl Backend for RealBackend {
         Ok(())
     }
 
-    fn arm(&mut self) -> Result<(), BackendError> {
+    fn arm(&mut self, vpn_enabled: bool) -> Result<(), BackendError> {
         let engine = self
             .wfp
             .as_mut()
@@ -328,10 +347,16 @@ impl Backend for RealBackend {
             .arm_default_deny()
             .map_err(|_| BackendError::new("E_FIREWALL_ARM_FAILED", "default_deny"))?;
 
-        let mut paths = vec![Self::tor_path(), Self::mullvad_path()];
-        let daemon = Self::mullvad_daemon_path();
-        if daemon.exists() {
-            paths.push(daemon);
+        // Tor is deliberately not permitted here. It must not be able to reach
+        // the network while the VPN is still connecting. Only Mullvad gets a
+        // permit for the connection setup, and only when VPN is requested.
+        let mut paths = Vec::new();
+        if vpn_enabled {
+            paths.push(Self::mullvad_path());
+            let daemon = Self::mullvad_daemon_path();
+            if daemon.exists() {
+                paths.push(daemon);
+            }
         }
 
         for path in paths {
@@ -343,6 +368,22 @@ impl Backend for RealBackend {
         }
 
         self.armed = true;
+        Ok(())
+    }
+
+    fn permit_protected_apps(&mut self) -> Result<(), BackendError> {
+        let engine = self
+            .wfp
+            .as_mut()
+            .ok_or_else(|| BackendError::new("E_FIREWALL_ARM_FAILED", "not_open"))?;
+        let tor = Self::tor_path();
+        if !tor.exists() {
+            return Err(BackendError::new("E_PREFLIGHT_MISSING_COMPONENT", "tor"));
+        }
+        Self::verify_tor()?;
+        engine
+            .permit_app(&tor)
+            .map_err(|_| BackendError::new("E_FIREWALL_ARM_FAILED", "permit"))?;
         Ok(())
     }
 
