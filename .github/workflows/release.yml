@@ -30,6 +30,13 @@ jobs:
         working-directory: ui
         run: bun install --frozen-lockfile
 
+      - name: Build tvpnd
+        run: cargo build -p tvpnd --release --bin tvpnd
+
+      - name: Fetch Tor Expert Bundle
+        shell: powershell
+        run: ./tools/fetch-tor.ps1
+
       - name: Build unsigned app
         working-directory: ui
         run: bun run tauri build
@@ -70,6 +77,6 @@ jobs:
           $assets = "ui/src-tauri/target/release/bundle/release-assets"
           $files = Get-ChildItem $assets | Select-Object -ExpandProperty FullName
           if ($files.Count -lt 3) { throw "Release-Dateien fehlen" }
-          $notes = "Unsignierter Alpha-Build. Diese Version schützt noch nichts: keine Firewall, kein VPN, keine Tor-Integration.`n`nPortable (ohne Installation): https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/TVPN-Pro-Windows-x64-Portable.exe`nInstaller: https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/TVPN-Pro-Windows-x64-Setup.exe`nSHA-256: https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/SHA256SUMS.txt"
+          $notes = "Unsignierter Alpha-Build für Windows. Der Installer enthält den Dienst tvpnd, WFP-Default-Deny, Tor und die UI. Die VPN-zu-Tor-Kette ist ohne Mullvad-Konto ungeprüft; MAC und Hostname sind im Hyper-V-Test nicht umgesetzt. Keine Anonymitätsgarantie.`n`nPortable (nur UI, braucht den Dienst): https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/TVPN-Pro-Windows-x64-Portable.exe`nInstaller: https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/TVPN-Pro-Windows-x64-Setup.exe`nSHA-256: https://github.com/Creeper100GB/TVPN-Pro/releases/latest/download/SHA256SUMS.txt"
           $arguments = @("release", "create", $env:GITHUB_REF_NAME, "--title", "$env:GITHUB_REF_NAME (Alpha)", "--notes", $notes) + $files
           & gh @arguments
