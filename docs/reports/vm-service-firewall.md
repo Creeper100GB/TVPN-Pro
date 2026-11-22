@@ -20,6 +20,8 @@ Runner: `tests/vm/run-in-vm.ps1`
 
 5. **Installer** (`installer-smoke.ps1`): NSIS `perMachine` installiert nach `C:\Program Files\TVPN Pro`, der Dienst `tvpnd` läuft als SYSTEM, `tvpnd.exe` und `tor\{tor.exe,geoip,geoip6}` liegen daneben. Pipe als `tvpn`, `set_settings vpn_enabled=false`, `enable` -> `DEGRADED`, Filter scharf, Verkehr blockiert; `panic` -> `OFF`, Netz zurück; der Uninstaller entfernt den Dienst. Log: `tests/vm/out/20261122T154957Z-installer-smoke.log`.
 
+6. **0.1.4-Installer und Panik-Hotkey**: Der Installer 0.1.4 installiert Dienst, App und Tor nach `C:\Program Files\TVPN Pro`; Enable bis `DEGRADED`, Verkehr blockiert, `panic` -> `OFF`, Uninstall entfernt den Dienst. Auf dem Host ist `Ctrl+Alt+Shift+F12` über einen eigenen Win32-`RegisterHotKey`-Thread registriert; ein synthetischer Tastendruck löste `panic` aus und der Dienst ging auf `OFF`.
+
 ## Grenzen
 
 - Keine Mullvad-App und kein Konto: VPN-zu-Tor-Kette und S1-Interface-Bedingung sind nicht geprüft.

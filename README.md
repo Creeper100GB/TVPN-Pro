@@ -56,7 +56,8 @@ Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert
 | WFP | Default-Deny plus Tor-/Mullvad-Permit; in der VM 12 Filter, Verkehr blockiert; Interface-Bindung (S1) offen |
 | Tor | Control-Client und echter `tor.exe`; in der VM Bootstrap 100 und Circuit |
 | VPN | Mullvad-CLI-Wrapper; ohne Konto und App ungeprüft |
-| Wächter | Status-Poll-Wächter schaltet auf `FAILCLOSED`; eigener Prozess offen |
+| Wächter | Hintergrund-Wächter alle 5 s plus Status-Poll; eigener Prozess offen |
+| Panik | UI-Button, Tray-Menü und globaler Hotkey `Ctrl+Alt+Shift+F12`; Schließen blendet ins Tray |
 | Installer | NSIS perMachine mit Dienst und Tor; in der VM Installation, Enable, Panik und Uninstall grün; unsigniert |
 | Tests | `just verify`, Playwright-E2E, VM-Smoke-Tests, Installer-Smoke |
 | macOS-Build | Ad-hoc signierte `.app` aus der CI; kein Schutz, keine Notarisierung |

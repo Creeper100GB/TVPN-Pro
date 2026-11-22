@@ -72,7 +72,7 @@ Status: `offen` · `läuft` · `Review` · `fertig` · `blockiert`. Rollen melde
 | P5-01 | watchdog | Wächter mit allen Takten und Eskalation | Jede Störung löst die richtige Stufe aus | läuft: Status-Poll-Wächter; eigener Prozess/Takte offen |
 | P5-02 | launcher | Block-Erkennung (je S5) | Muster-Tests, Challenge löst nichts aus | offen |
 | P5-03 | launcher, net-core | Fallback-Browser und Firewall-Permit | Nur über VPN-Adapter erreichbar | offen |
-| P5-04 | ui-shell, orchestrator | Panik-Taste, Notfall-Reset in der UI, Session-Zusammenfassung | Funktioniert in der VM | offen |
+| P5-04 | ui-shell, orchestrator | Panik-Taste, Notfall-Reset in der UI, Session-Zusammenfassung | Funktioniert in der VM | läuft: UI-Button, Tray-Menü und `Ctrl+Alt+Shift+F12`; Hotkey auf dem Host getestet, in der VM nicht interaktiv |
 | P5-05 | qa-security | Sicherheits-Review und volle Matrix | Alle Punkte grün | offen |
 
 ## Phase 6 bis 9
