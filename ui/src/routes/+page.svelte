@@ -37,11 +37,16 @@
 
 	const meta = $derived(STATE_META[app.state]);
 	const noFilter = $derived(app.state === 'FAILCLOSED' && !app.firewallArmed);
-	const stateLabel = $derived(noFilter ? 'Vorprüfung fehlgeschlagen' : meta.label);
+	const torOnly = $derived(app.state === 'DEGRADED' && !app.settings.vpnEnabled);
+	const stateLabel = $derived(
+		noFilter ? 'Vorprüfung fehlgeschlagen' : torOnly ? 'Tor-only' : meta.label
+	);
 	const stateHint = $derived(
 		noFilter
 			? 'Es ist kein Filter aktiv. Das Netz ist offen. Prüfe Tor, Mullvad und die Einstellungen.'
-			: meta.hint
+			: torOnly
+				? 'Tor läuft, die VPN-Kette ist aus. Der ISP sieht Tor-Traffic; Ziele sehen die Tor-Exit-IP.'
+				: meta.hint
 	);
 	const busy = $derived(isTransient(app.state));
 	const tone = $derived(meta.tone);

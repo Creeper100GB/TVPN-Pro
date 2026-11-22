@@ -111,7 +111,10 @@ function applyServiceStatus(data: Record<string, unknown>) {
 	app.watchdog = (watchdog.level as WatchdogLevel) ?? 'ok';
 	app.banners = Array.isArray(data.banners) ? (data.banners as BannerKind[]) : [];
 	const shield = (data.shield ?? {}) as Record<string, unknown>;
-	app.firewallArmed = Boolean(shield.firewall_armed) || isArmed(state);
+	app.firewallArmed =
+		typeof shield.firewall_armed === 'boolean'
+			? Boolean(shield.firewall_armed)
+			: isArmed(state);
 	app.macRandomized = Boolean(shield.mac_randomized);
 	if (state === 'FAILCLOSED' && !app.firewallArmed && !app.banners.includes('no_filter')) {
 		app.banners = [...app.banners, 'no_filter'];
@@ -401,8 +404,14 @@ export async function enable() {
 			await serviceCommand('enable', { net_mode: 'focus', protect_mode: 'tor_vpn' });
 			await refreshService();
 			const reached = app.state as AppState;
-			if (reached === 'READY' || reached === 'DEGRADED') {
+			if (reached === 'READY') {
 				showToast('Schutz steht. Nur Tor und Freigaben kommen raus.');
+			} else if (reached === 'DEGRADED') {
+				showToast(
+					app.settings.vpnEnabled
+						? 'Eine Komponente ist eingeschränkt. Prüfe den Status.'
+						: 'Tor läuft. Die VPN-Kette ist aus; der ISP sieht Tor-Traffic.'
+				);
 			}
 		} catch (cause) {
 			const code = String(cause);

@@ -21,7 +21,8 @@ export type BannerKind =
 	| 'mac_unsupported'
 	| 'hostname_unchanged'
 	| 'vpn_route'
-	| 'no_filter';
+	| 'no_filter'
+	| 'tor_only';
 
 export type WatchdogLevel = 'ok' | 'warn' | 'critical';
 

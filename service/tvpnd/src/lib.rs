@@ -196,7 +196,7 @@ impl Service {
                 return self.fail(request, error);
             }
         } else {
-            self.add_banner("degraded");
+            self.add_banner("tor_only");
         }
 
         if let Err(error) = self.transition(Event::VpnUp) {

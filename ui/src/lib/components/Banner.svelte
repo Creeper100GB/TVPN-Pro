@@ -50,6 +50,11 @@
 			icon: ShieldAlert,
 			tone: 'danger',
 			text: 'Es ist kein Filter aktiv. Das Netz ist offen. Die Vorprüfung ist fehlgeschlagen.'
+		},
+		tor_only: {
+			icon: Globe,
+			tone: 'warn',
+			text: 'Tor-only: Die VPN-Kette ist aus. Der ISP sieht Tor-Traffic, Ziele sehen die Tor-Exit-IP.'
 		}
 	};
 
