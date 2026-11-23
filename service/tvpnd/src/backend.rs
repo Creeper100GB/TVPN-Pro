@@ -18,7 +18,7 @@ use tvpn_net::tor::TorController;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 #[cfg(windows)]
-use tvpn_net::wfp::WfpEngine;
+use tvpn_net::wfp::{filters_are_complete, WfpEngine};
 
 /// A failure with a contract error code and a short machine detail.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,12 +75,39 @@ pub struct MockBackend {
     mac_randomized: bool,
     tor_started: bool,
     fail_preflight: bool,
+    fail_shutdown: bool,
+    fail_shutdown_once: bool,
+    fail_disarm: bool,
 }
 
 impl MockBackend {
     pub fn failing() -> Self {
         Self {
             fail_preflight: true,
+            ..Self::default()
+        }
+    }
+
+    /// Injection for the panic teardown path: `shutdown` fails, `disarm` works.
+    pub fn failing_shutdown() -> Self {
+        Self {
+            fail_shutdown: true,
+            ..Self::default()
+        }
+    }
+
+    /// Injection for the panic teardown path: `shutdown` works, `disarm` fails.
+    pub fn failing_disarm() -> Self {
+        Self {
+            fail_disarm: true,
+            ..Self::default()
+        }
+    }
+
+    /// Injection for a teardown that fails once and succeeds on the retry.
+    pub fn failing_shutdown_once() -> Self {
+        Self {
+            fail_shutdown_once: true,
             ..Self::default()
         }
     }
@@ -138,6 +165,19 @@ impl Backend for MockBackend {
     }
 
     fn shutdown(&mut self) -> Result<(), BackendError> {
+        if self.fail_shutdown {
+            return Err(BackendError::new(
+                "E_FIREWALL_RECOVERY_FAILED",
+                "mock_shutdown",
+            ));
+        }
+        if self.fail_shutdown_once {
+            self.fail_shutdown_once = false;
+            return Err(BackendError::new(
+                "E_FIREWALL_RECOVERY_FAILED",
+                "mock_shutdown_once",
+            ));
+        }
         self.vpn_connected = false;
         self.tor_circuit = false;
         self.tor_started = false;
@@ -145,6 +185,12 @@ impl Backend for MockBackend {
     }
 
     fn disarm(&mut self) -> Result<(), BackendError> {
+        if self.fail_disarm {
+            return Err(BackendError::new(
+                "E_FIREWALL_RECOVERY_FAILED",
+                "mock_disarm",
+            ));
+        }
         self.armed = false;
         Ok(())
     }
@@ -495,8 +541,14 @@ impl Backend for RealBackend {
     }
 
     fn leak_check(&mut self, vpn_required: bool) -> Result<(), BackendError> {
-        let filters = self.wfp.as_ref().map(|engine| engine.verify()).unwrap_or(0);
-        if !self.armed || filters < 8 {
+        let (filters, expected) = self
+            .wfp
+            .as_ref()
+            .map(|engine| (engine.verify(), engine.expected_filter_count()))
+            .unwrap_or((0, 0));
+        // Compare against the full expected set: a partial filter set (for
+        // example permits without the block filters) must not pass.
+        if !self.armed || !filters_are_complete(filters, expected) {
             return Err(BackendError::new("E_FIREWALL_VERIFY_MISMATCH", "filters"));
         }
         if vpn_required {
@@ -582,13 +634,20 @@ impl Backend for RealBackend {
             .as_mut()
             .and_then(|controller| controller.circuit().ok())
             .unwrap_or(false);
-        let filters = self.wfp.as_ref().map(|engine| engine.verify()).unwrap_or(0);
+        let (filters, expected) = self
+            .wfp
+            .as_ref()
+            .map(|engine| (engine.verify(), engine.expected_filter_count()))
+            .unwrap_or((0, 0));
         BackendStatus {
             vpn_connected,
             vpn_country: country.or_else(|| self.vpn_country.clone()),
             tor_bootstrap: bootstrap,
             tor_circuit: circuit,
-            firewall_armed: self.armed || filters > 0,
+            // The truth is the filter set in BFE, not the last command we ran.
+            // Externally deleted filters therefore show up as unarmed, and so
+            // does a partial set that would leave traffic unblocked.
+            firewall_armed: filters_are_complete(filters, expected),
             firewall_filters: filters,
             mac_supported: false,
             mac_randomized: self.mac_randomized,

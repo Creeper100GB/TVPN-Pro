@@ -2,6 +2,8 @@ import { cancelAllDownloads, serviceCommand, serviceStatus } from './backend';
 import { COUNTRIES } from './countries';
 import { isDesktop } from './desktop';
 import { isArmed, isTransient, STATE_META } from './states';
+import { summarizeDownloadList } from './summary';
+import { shouldWriteSummary, teardownStart } from './teardown';
 import type {
 	AppState,
 	BannerKind,
@@ -77,9 +79,15 @@ export const app = $state<AppStore>({
 let generation = 0;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** When the current protection session started, not when READY was reached. */
+let sessionStartedAt: number | null = null;
+
 function sleep(ms: number) {
 	return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
+
+/** Panic teardown in the browser preview. Long enough that the E2E can observe it. */
+const teardownDuration = 2000;
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let pollBusy = false;
@@ -88,7 +96,8 @@ let settingsLoaded = false;
 function applySettings(raw: Record<string, unknown>) {
 	app.settings = {
 		vpnEnabled: Boolean(raw.vpn_enabled),
-		vpnCountry: String(raw.vpn_country ?? 'random'),
+		// The service stores ISO codes in upper case, the picker uses lower case.
+		vpnCountry: String(raw.vpn_country ?? 'random').toLowerCase(),
 		torBridges: Boolean(raw.tor_bridges),
 		blockFallback: (raw.block_fallback as Settings['blockFallback']) ?? 'auto',
 		macMode: (raw.mac_mode as Settings['macMode']) ?? 'random',
@@ -124,7 +133,9 @@ function applyServiceStatus(data: Record<string, unknown>) {
 		app.banners = [...app.banners, 'no_filter'];
 	}
 	app.progress = STATE_META[state].progress;
-	if (state !== 'FAILCLOSED') app.failureCode = null;
+	// A teardown keeps its code: only a genuinely failed teardown lands in
+	// TEARDOWN with one, and the view offers the reset instead of a busy state.
+	if (state !== 'FAILCLOSED' && state !== 'TEARDOWN') app.failureCode = null;
 }
 
 function markServiceLost() {
@@ -234,32 +245,50 @@ export function quarantinedDownloadCount(): number {
 	return app.downloads.filter((item) => item.verdict === 'quarantined').length;
 }
 
+/** One session summary from the service answer plus the local download counts. */
+function buildSummary(
+	serviceSummary: Record<string, unknown> | null,
+	startedAt: number,
+	endedAt: number,
+	reachedLocally: AppState
+): SessionSummary {
+	const counts = summarizeDownloads();
+	const source = serviceSummary ?? {};
+	return {
+		startedAt,
+		endedAt,
+		stateReached: (source.state_reached as AppState) ?? reachedLocally,
+		clean: counts.clean,
+		warned: counts.warned,
+		quarantined: counts.quarantined,
+		failed: counts.failed,
+		failclosedCount: Number(source.failclosed_count ?? 0),
+		reasons: Array.isArray(source.reasons) ? source.reasons.map(String) : []
+	};
+}
+
 function summarizeDownloads() {
-	let clean = 0;
-	let warned = 0;
-	let quarantined = 0;
-	let failed = 0;
+	return summarizeDownloadList(app.downloads);
+}
 
-	for (const item of app.downloads) {
-		switch (item.verdict) {
-			case 'clean':
-				clean += 1;
-				break;
-			case 'warned':
-				warned += 1;
-				break;
-			case 'quarantined':
-				quarantined += 1;
-				break;
-			case 'failed':
-				failed += 1;
-				break;
-			case null:
-				break;
-		}
+/**
+ * Reads the service summary and falls back to the local counts.
+ *
+ * Kept apart from the teardown call: a missing summary is a reporting gap, not a
+ * failure to end protection, so it must never surface as FAILCLOSED.
+ */
+async function sessionSummary(startedAt: number, reached: AppState): Promise<SessionSummary> {
+	try {
+		const raw = await serviceCommand('get_session_summary');
+		return buildSummary(
+			raw && typeof raw === 'object' ? raw : null,
+			startedAt,
+			Date.now(),
+			reached
+		);
+	} catch {
+		return buildSummary(null, startedAt, Date.now(), reached);
 	}
-
-	return { clean, warned, quarantined, failed };
 }
 
 /** Contract rules from `contracts/ipc-v0.md` section 7, checked in the UI too. */
@@ -308,7 +337,7 @@ export function parseDownloadInput(raw: string, route: DownloadRoute): ParsedDow
 		return {
 			ok: false,
 			error:
-				'Torrents sind nicht implementiert. Es läuft kein Torrent-Client, es wird keine .torrent-Datei gespeichert und es wird nichts geseedet.',
+				'Torrents sind nicht implementiert. Es läuft kein Torrent-Client, eine .torrent-Datei wird wie jede andere Datei gespeichert, aber nicht geöffnet oder geseedet.',
 			label: '',
 			source: 'torrent'
 		};
@@ -392,12 +421,17 @@ export function removeDownload(id: string) {
 }
 
 export function clearDownloads() {
+	if (isDesktop) void cancelAllDownloads().catch(() => {});
 	app.downloads = [];
 	removeBanner('vpn_route');
 }
 
 export async function enable() {
 	if (app.state !== 'OFF') return;
+
+	// The session starts here, not when READY is reached: PREFLIGHT, ARMING and
+	// the Tor bootstrap are part of the time the user was protected.
+	sessionStartedAt = Date.now();
 
 	if (isDesktop) {
 		app.failureCode = null;
@@ -453,7 +487,8 @@ export async function enable() {
 
 	setState('ARMING', 24);
 	app.firewallArmed = true;
-	app.macRandomized = true;
+	// A random MAC is a setting, not a side effect of switching on.
+	app.macRandomized = app.settings.macMode !== 'original';
 	await sleep(1000);
 	if (my !== generation) return;
 
@@ -482,28 +517,20 @@ export async function disable() {
 	if (app.state === 'OFF' || app.state === 'TEARDOWN') return;
 
 	if (isDesktop) {
-		setState('TEARDOWN', 40);
+		// Capture the session start before TEARDOWN resets `since`, otherwise the
+		// summary duration is only the length of the teardown.
+		const startedAt = sessionStartedAt ?? app.since;
+		const reached = app.state;
+		const start = teardownStart(app.banners);
+		app.failureCode = start.failureCode;
+		app.banners = start.banners;
+		setState(start.state, 40);
 		try {
 			await cancelAllDownloads().catch(() => {});
 			await serviceCommand('disable', { downloads_policy: 'wait' });
-			const rawSummary = await serviceCommand('get_session_summary');
-			const serviceSummary =
-				rawSummary && typeof rawSummary === 'object' ? rawSummary : {};
-			const counts = summarizeDownloads();
-			app.lastSummary = {
-				startedAt: app.since,
-				endedAt: Date.now(),
-				stateReached: (serviceSummary.state_reached as AppState) ?? 'OFF',
-				clean: counts.clean,
-				warned: counts.warned,
-				quarantined: counts.quarantined,
-				failed: counts.failed,
-				failclosedCount: Number(serviceSummary.failclosed_count ?? 0),
-				reasons: Array.isArray(serviceSummary.reasons)
-					? serviceSummary.reasons.map(String)
-					: []
-			};
+			app.lastSummary = await sessionSummary(startedAt, reached);
 			app.summaryOpen = true;
+			sessionStartedAt = null;
 			await refreshService();
 			showToast('Schutz beendet.');
 		} catch (cause) {
@@ -516,9 +543,13 @@ export async function disable() {
 	}
 
 	const my = ++generation;
-	const startedAt = app.since;
+	const startedAt = sessionStartedAt ?? app.since;
+	const reached = app.state;
 
-	setState('TEARDOWN', 40);
+	const start = teardownStart(app.banners);
+	app.failureCode = start.failureCode;
+	app.banners = start.banners;
+	setState(start.state, 40);
 	await sleep(600);
 	if (my !== generation) return;
 
@@ -526,19 +557,9 @@ export async function disable() {
 	await sleep(650);
 	if (my !== generation) return;
 
-	const counts = summarizeDownloads();
-	app.lastSummary = {
-		startedAt,
-		endedAt: Date.now(),
-		stateReached: 'READY',
-		clean: counts.clean,
-		warned: counts.warned,
-		quarantined: counts.quarantined,
-		failed: counts.failed,
-		failclosedCount: 0,
-		reasons: []
-	};
+	app.lastSummary = buildSummary(null, startedAt, Date.now(), reached);
 	app.summaryOpen = true;
+	sessionStartedAt = null;
 
 	app.firewallArmed = false;
 	app.vpnConnected = false;
@@ -552,13 +573,27 @@ export async function disable() {
 
 export async function panic() {
 	if (isDesktop) {
+		const startedAt = sessionStartedAt ?? app.since;
+		const reached = app.state;
 		removeBanner('portal_open');
 		removeBanner('fallback_active');
-		setState('TEARDOWN', 55);
-		app.downloads = [];
+		const start = teardownStart(app.banners);
+		app.failureCode = start.failureCode;
+		app.banners = start.banners;
+		setState(start.state, 55);
 		try {
 			await cancelAllDownloads().catch(() => {});
 			await serviceCommand('panic');
+			// A panic from OFF has no session to report, and a second panic during a
+			// hanging teardown must not report TEARDOWN as a reached state. The
+			// download list is cleared either way; only the report is gated.
+			if (shouldWriteSummary(reached)) {
+				// Build the summary before the list is cleared: the counts come from it.
+				app.lastSummary = await sessionSummary(startedAt, reached);
+				app.summaryOpen = true;
+			}
+			sessionStartedAt = null;
+			app.downloads = [];
 			await refreshService();
 			showToast('Panik: Schutz beendet, Netz wieder offen.');
 		} catch (cause) {
@@ -570,13 +605,23 @@ export async function panic() {
 	}
 
 	const my = ++generation;
+	const startedAt = sessionStartedAt ?? app.since;
+	const reached = app.state;
 	removeBanner('portal_open');
 	removeBanner('fallback_active');
-	setState('TEARDOWN', 55);
+	const start = teardownStart(app.banners);
+	app.failureCode = start.failureCode;
+	app.banners = start.banners;
+	setState(start.state, 55);
+	await sleep(teardownDuration);
+	if (my !== generation) return;
+	if (shouldWriteSummary(reached)) {
+		app.lastSummary = buildSummary(null, startedAt, Date.now(), reached);
+		app.summaryOpen = true;
+	}
+	sessionStartedAt = null;
 	app.downloads = [];
 	showToast('Panik: Schutz beendet, Netz offen.');
-	await sleep(550);
-	if (my !== generation) return;
 	app.firewallArmed = false;
 	app.vpnConnected = false;
 	app.country = null;
@@ -639,7 +684,16 @@ export function updateSetting<K extends keyof Settings>(key: K, value: Settings[
 		portalTimeoutSec: 'portal_timeout_sec'
 	};
 
-	void serviceCommand('set_settings', { settings: { [keys[key]]: value } })
+	// The service validates upper-case ISO codes and a numeric timeout.
+	let payload: unknown = value;
+	if (key === 'vpnCountry') {
+		const country = String(value).toLowerCase();
+		payload = country === 'random' ? 'random' : country.toUpperCase();
+	} else if (key === 'portalTimeoutSec') {
+		payload = Number(value);
+	}
+
+	void serviceCommand('set_settings', { settings: { [keys[key]]: payload } })
 		.then(() => showToast('Einstellung gespeichert.'))
 		.catch((cause) => {
 			showToast('Nicht gespeichert: ' + String(cause));

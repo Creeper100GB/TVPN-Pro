@@ -21,6 +21,9 @@ export const COUNTRIES: Array<{ code: string; name: string }> = [
 
 export function countryName(code: string | null): string {
 	if (!code) return 'Nicht verbunden';
-	const hit = COUNTRIES.find((c) => c.code === code);
-	return hit && hit.code !== 'random' ? hit.name : 'Zufällig';
+	// The service stores ISO codes in upper case, the picker uses lower case.
+	const normalized = code.toLowerCase();
+	if (normalized === 'random') return 'Zufällig';
+	const hit = COUNTRIES.find((c) => c.code === normalized);
+	return hit ? hit.name : 'Unbekannt';
 }

@@ -44,3 +44,7 @@ ui/test-results/
 ui/playwright-report/
 
 tools/tor/
+
+# Agent scratch notes: kept locally, never committed (anchored so a future
+# docs/progress.md stays a real document)
+/progress.md

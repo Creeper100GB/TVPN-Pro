@@ -18,10 +18,9 @@ export interface DownloadProgress {
 
 export interface DownloadDone {
 	id: string;
-	path: string;
 	bytes: number;
 	sha256: string;
-	verdict: 'clean' | 'threat' | 'unknown';
+	verdict: 'clean' | 'threat' | 'quarantined' | 'quarantine_failed' | 'unknown' | 'failed';
 }
 
 export interface DownloadFailure {
@@ -95,6 +94,14 @@ export function explainDownloadError(code: string): string {
 		network: 'Netzwerkfehler. Läuft der Tor-Proxy auf 127.0.0.1:9150?',
 		proxy: 'Tor-Proxy konnte nicht gesetzt werden.',
 		cancelled: 'Abgebrochen.',
+		blocked_address:
+			'Der Link zeigt auf dieses Gerät oder ins lokale Netz. Abgelehnt.',
+		redirect: 'Zu viele Weiterleitungen. Abgelehnt.',
+		url: 'Die Adresse ist ungültig oder nicht erlaubt.',
+		too_large: 'Die Datei ist größer als 8 GB und wird nicht geladen.',
+		move: 'Die Datei konnte nicht an ihren Platz verschoben werden.',
+		quarantine_dir: 'Der Quarantäne-Ordner konnte nicht angelegt werden.',
+		quarantine_move: 'Der Fund konnte nicht in die Quarantäne verschoben werden.',
 		no_download_dir: 'Der Download-Ordner wurde nicht gefunden.',
 		create_file: 'Die Datei konnte nicht angelegt werden.',
 		read: 'Der Empfang ist abgebrochen.',

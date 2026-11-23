@@ -16,6 +16,12 @@ serde_json = "1"
 base64 = "0.22"
 getrandom = "0.2"
 
+[build-dependencies]
+# The installer runs tvpnd.exe --install before the VC++ redistributable is
+# guaranteed to exist. statically link the VC runtime so a clean Windows
+# install never shows a missing VCRUNTIME140.dll dialog and blocks Winget.
+static_vcruntime = "3.0"
+
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
     "Win32_Foundation",

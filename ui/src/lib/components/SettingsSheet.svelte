@@ -80,13 +80,14 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">Land</p>
-				<p class="desc">Zufällig wählt pro Sitzung einen anderen Endpunkt.</p>
+				<p class="desc">Zufällig lässt die aktuelle Mullvad-Auswahl; die App erzwingt keinen Wechsel.</p>
 			</div>
 			<div class="select">
 				<select
 					aria-label="VPN-Land"
-					bind:value={app.settings.vpnCountry}
+					value={app.settings.vpnCountry}
 					disabled={!app.settings.vpnEnabled}
+					onchange={(event) => updateSetting('vpnCountry', event.currentTarget.value)}
 				>
 					{#each COUNTRIES as country (country.code)}
 						<option value={country.code}>{country.name}</option>
@@ -99,7 +100,7 @@
 		<div class="item">
 			<div class="text">
 				<p class="title">Bridges</p>
-				<p class="desc">Nur wenn Tor ohne Bridges blockiert wird.</p>
+				<p class="desc">Nicht implementiert. Der Wert wird gespeichert, aber nicht verwendet.</p>
 			</div>
 			<Toggle
 				checked={app.settings.torBridges}
@@ -117,7 +118,7 @@
 				<p class="title">Firewall-Allowlist</p>
 				<p class="desc">Blockt ausgehenden Verkehr außer Tor, VPN und Loopback. Loopback ist derzeit global erlaubt.</p>
 			</div>
-			<span class="badge">Immer an</span>
+			<span class="badge">{app.firewallArmed ? 'Aktiv' : 'Inaktiv'}</span>
 		</div>
 
 		<div class="item">
@@ -153,7 +154,9 @@
 					max="600"
 					step="30"
 					aria-label="Portal-Zeitfenster in Sekunden"
-					bind:value={app.settings.portalTimeoutSec}
+					value={app.settings.portalTimeoutSec}
+					onchange={(event) =>
+						updateSetting('portalTimeoutSec', Number(event.currentTarget.value))}
 				/>
 				<span>{Math.round(app.settings.portalTimeoutSec / 60)} min</span>
 			</div>

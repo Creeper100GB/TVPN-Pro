@@ -16,15 +16,15 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $exe = Join-Path $root 'tvpnd.exe'
 $torDir = 'C:\Program Files\TVPN\tor'
-$dataDir = Join-Path $env:ProgramData 'TVPN\tor'
 $tokenPath = Join-Path $env:ProgramData 'TVPN\session.token'
 $outLog = Join-Path $root 'enable-smoke.out.log'
 $errLog = Join-Path $root 'enable-smoke.err.log'
 $pipe = $null
 
-New-Item -ItemType Directory -Force -Path $torDir, $dataDir | Out-Null
+New-Item -ItemType Directory -Force -Path $torDir | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'tor.exe') -Destination (Join-Path $torDir 'tor.exe') -Force
-Copy-Item -LiteralPath (Join-Path $root 'geoip'), (Join-Path $root 'geoip6') -Destination $dataDir -Force
+# tvpnd passes --GeoIPFile/--GeoIPv6File from tor.exe's own directory.
+Copy-Item -LiteralPath (Join-Path $root 'geoip'), (Join-Path $root 'geoip6') -Destination $torDir -Force
 
 Remove-Item -LiteralPath $tokenPath -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $outLog, $errLog -Force -ErrorAction SilentlyContinue
@@ -83,9 +83,12 @@ try {
         v = 0; id = 'e'; cmd = 'enable'
         args = @{ net_mode = 'focus'; protect_mode = 'tor_vpn' }
     }
+    if (-not $enable.ok) {
+        throw "enable failed: $($enable.error.code) / $($enable.error.detail)"
+    }
 
     $status = Send-Request @{ v = 0; id = 's'; cmd = 'get_status'; args = @{} }
-    if ($status.data.state -notin @('DEGRADED', 'READY', 'FAILCLOSED')) {
+    if ($status.data.state -notin @('DEGRADED', 'READY')) {
         throw "unexpected state after enable: $($status.data.state)"
     }
     if (-not $status.data.shield.firewall_armed) {

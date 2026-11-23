@@ -27,7 +27,8 @@
 		refreshService,
 		showToast
 	} from '../lib/mock.svelte';
-	import { STATE_META, TONE_VAR, isArmed, isTransient } from '../lib/states';
+	import { STATE_META, TONE_VAR, isTransient } from '../lib/states';
+	import { isFailedTeardown } from '../lib/teardown';
 	import Banner from '../lib/components/Banner.svelte';
 	import DownloadSheet from '../lib/components/DownloadSheet.svelte';
 	import PowerButton from '../lib/components/PowerButton.svelte';
@@ -35,8 +36,32 @@
 	import SettingsSheet from '../lib/components/SettingsSheet.svelte';
 	import StatRow from '../lib/components/StatRow.svelte';
 	import { APP_VERSION } from '../lib/version';
+	import type { ScanVerdict } from '../lib/types';
+
+	/** UI verdict for the shell verdict of a finished download. */
+	const DOWNLOAD_VERDICTS: Record<ScanVerdict, ScanVerdict> = {
+		clean: 'clean',
+		warned: 'warned',
+		quarantined: 'quarantined',
+		quarantine_failed: 'quarantine_failed',
+		failed: 'failed',
+		threat: 'threat',
+		unknown: 'unknown'
+	};
+
+	const DOWNLOAD_TOASTS: Record<ScanVerdict, string> = {
+		clean: 'Download fertig, Scan sauber.',
+		warned: 'Download fertig. Urteil prüfen.',
+		quarantined: 'Download in Quarantäne verschoben.',
+		quarantine_failed: 'Fund erkannt, Quarantäne fehlgeschlagen.',
+		failed: 'Download fehlgeschlagen.',
+		threat: 'Download als Fund erkannt.',
+		unknown: 'Download fertig. Urteil prüfen.'
+	};
 
 	const meta = $derived(STATE_META[app.state]);
+	/** A teardown that failed keeps its reset affordance, even after a UI restart. */
+	const teardownFailed = $derived(isFailedTeardown(app.state, app.failureCode, app.banners));
 	const serviceDown = $derived(
 		!app.serviceReachable && app.serviceEverReachable && app.state !== 'OFF'
 	);
@@ -49,7 +74,9 @@
 				? 'Vorprüfung fehlgeschlagen'
 				: torOnly
 					? 'Tor-only'
-					: meta.label
+					: teardownFailed
+						? 'Abbau unvollständig'
+						: meta.label
 	);
 	const stateHint = $derived(
 		serviceDown
@@ -58,11 +85,17 @@
 				? 'Es ist kein Filter aktiv. Das Netz ist offen. Prüfe Tor, Mullvad und die Einstellungen.'
 				: torOnly
 					? 'Tor läuft, die VPN-Kette ist aus. Der ISP sieht Tor-Traffic; Ziele sehen die Tor-Exit-IP.'
-					: meta.hint
+					: teardownFailed
+						? app.firewallArmed
+							? 'Tor, VPN oder Firewall ließen sich nicht vollständig abbauen. Das Netz bleibt gesperrt, bis der Notfall-Reset durchläuft.'
+							: 'Der Abbau ist nicht durchgelaufen und es ist kein Filter aktiv. Das Netz ist offen. Prüfe Tor, Mullvad und die Einstellungen.'
+						: meta.hint
 	);
 	const busy = $derived(isTransient(app.state));
-	const tone = $derived(serviceDown ? 'danger' : meta.tone);
-	const primaryDisabled = $derived(!serviceDown && busy && app.state !== 'RECOVERY');
+	const tone = $derived(serviceDown || teardownFailed ? 'danger' : meta.tone);
+	const primaryDisabled = $derived(
+		!serviceDown && busy && app.state !== 'RECOVERY' && !teardownFailed
+	);
 
 	const startLabel = $derived(
 		new Date(app.since).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
@@ -92,15 +125,17 @@
 	const powerLabel = $derived(
 		serviceDown
 			? 'Status prüfen'
-			: app.state === 'OFF'
-				? 'Schutz einschalten'
-				: app.state === 'FAILCLOSED'
-					? 'Notfall-Reset starten'
-					: app.state === 'RECOVERY'
+			: teardownFailed
+				? 'Notfall-Reset starten'
+				: app.state === 'OFF'
+					? 'Schutz einschalten'
+					: app.state === 'FAILCLOSED'
 						? 'Notfall-Reset starten'
-						: app.state === 'READY' || app.state === 'DEGRADED'
-							? 'Schutz ausschalten'
-							: meta.action
+						: app.state === 'RECOVERY'
+							? 'Notfall-Reset starten'
+							: app.state === 'READY' || app.state === 'DEGRADED'
+								? 'Schutz ausschalten'
+								: meta.action
 	);
 
 	onMount(() => {
@@ -118,21 +153,13 @@
 						patchDownload(event.id, { phase: 'active', progress: percent });
 					},
 					done: (event) => {
+						const verdict = DOWNLOAD_VERDICTS[event.verdict];
 						patchDownload(event.id, {
 							phase: 'done',
 							progress: 100,
-							verdict:
-								event.verdict === 'clean'
-									? 'clean'
-									: event.verdict === 'threat'
-										? 'threat'
-										: 'unknown'
+							verdict
 						});
-						showToast(
-							event.verdict === 'clean'
-								? 'Download fertig, Scan sauber.'
-								: 'Download fertig. Urteil prüfen.'
-						);
+						showToast(DOWNLOAD_TOASTS[event.verdict]);
 					},
 					error: (event) => {
 						console.error('download-error', event.code);
@@ -172,6 +199,10 @@
 		switch (app.state) {
 			case 'OFF':
 				void enable();
+				break;
+			case 'TEARDOWN':
+				// A failed teardown stays in TEARDOWN; the button is the way out.
+				if (teardownFailed) void recover();
 				break;
 			case 'FAILCLOSED':
 			case 'RECOVERY':
@@ -269,7 +300,7 @@
 					</div>
 				{/if}
 
-				{#if app.failureCode && app.state === 'FAILCLOSED'}
+				{#if app.failureCode && (app.state === 'FAILCLOSED' || app.state === 'TEARDOWN')}
 					<p class="error-code">
 						{explainFailure(app.failureCode)}
 						<span class="code">({app.failureCode})</span>
@@ -281,7 +312,7 @@
 				<section class="card" aria-labelledby="conn-title">
 					<header class="card-head">
 						<h3 id="conn-title">Verbindung</h3>
-						<span class="chip">{isArmed(app.state) ? 'Scharf' : 'Bereit'}</span>
+						<span class="chip">{serviceDown ? 'Unbekannt' : app.firewallArmed ? 'Scharf' : 'Bereit'}</span>
 					</header>
 					<div class="card-body">
 						<StatRow label="VPN" value={vpnValue} tone={vpnTone} divider={false}>
@@ -332,8 +363,9 @@
 							{#snippet icon()}<ShieldAlert size={15} strokeWidth={1.8} />{/snippet}
 						</StatRow>
 						<p class="small-note">
-							Scans laufen über Defender und ClamAV. Keine 0-Days, keine Dokumente, die nach dem
-							Ausschalten die echte IP verraten.
+							Scans laufen über den Windows-Defender (<code>MpCmdRun.exe</code>). Kein zweiter
+							Scanner, keine 0-Days, keine Dokumente, die nach dem Ausschalten die echte IP
+							verraten.
 						</p>
 					</div>
 				</section>
@@ -342,10 +374,10 @@
 					Reduziert Spuren. Ersetzt kein vorsichtiges Verhalten und verspricht keine Anonymität.
 				</p>
 
-				{#if isArmed(app.state)}
+				{#if app.firewallArmed}
 					<button type="button" class="panic" onclick={panic}>
 						<Zap size={14} />
-						Panik: Apps zu, Netz zu
+						Panik: Schutz beenden, Netz öffnen
 					</button>
 				{/if}
 			</aside>

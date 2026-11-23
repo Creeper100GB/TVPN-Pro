@@ -78,7 +78,7 @@ for (const theme of ['light', 'dark']) {
 	await shot(`${theme}-state-off`);
 
 	await page.getByRole('button', { name: 'Schutz einschalten' }).click();
-	await waitForState('Geschützt');
+	await waitForState('Tor aktiv');
 	await shot(`${theme}-state-ready`);
 	await assertLayout(`${theme}/READY`);
 

@@ -31,6 +31,15 @@ jobs:
       - name: Tests
         run: cargo test --workspace --locked
 
+      - name: Desktop shell formatting
+        run: cargo fmt --manifest-path ui/src-tauri/Cargo.toml -- --check
+
+      - name: Desktop shell clippy
+        run: cargo clippy --locked --manifest-path ui/src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Desktop shell tests
+        run: cargo test --locked --manifest-path ui/src-tauri/Cargo.toml
+
   powershell:
     runs-on: windows-latest
     steps:
@@ -59,6 +68,18 @@ jobs:
       - name: Install Chromium
         working-directory: ui
         run: bunx playwright install chromium
+
+      - name: UI type check
+        working-directory: ui
+        run: bun run check
+
+      - name: UI production build
+        working-directory: ui
+        run: bun run build
+
+      - name: UI unit tests
+        working-directory: ui
+        run: bun run test
 
       - name: End-to-end tests
         working-directory: ui

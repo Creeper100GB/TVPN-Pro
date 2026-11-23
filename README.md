@@ -51,6 +51,8 @@ winget upgrade --id Creeper100GB.TVPNPro -e
 
 Winget erkennt auch eine über GitHub installierte `0.1.5` am ARP-Eintrag
 `TVPN Pro` / `TVPN Pro Contributors` und kann sie auf `0.1.6` aktualisieren.
+Der ARP-Publisher des ausgelieferten `0.1.6`-Installers ist `TVPN Pro
+Contributors`; `ZenSquirrel` gilt erst für neu gebaute Installer.
 Winget läuft nicht automatisch im Hintergrund; das Upgrade wird bewusst
 angestoßen. Details: [`docs/WINGET.md`](docs/WINGET.md).
 
@@ -71,17 +73,17 @@ Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert
 | Bereich | Stand |
 |---|---|
 | Oberfläche (Svelte 5, Tauri 2) | Alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Hell/Dunkel, macOS-artiges Fenster |
-| Download (Desktop) | Echt: HTTPS über `reqwest`, Routen **Direkt** und **über Tor** (lokaler SOCKS-Proxy 9150), SHA-256, Mark-of-the-Web, Quarantäne bei Fund, Abbruch löscht die Datei |
+| Download (Desktop) | Echt: HTTPS über `reqwest`, Routen **Direkt** und **über Tor** (lokaler SOCKS-Proxy 9150), SHA-256, Mark-of-the-Web für jede abgelegte Datei, Quarantäne bei Fund (als Quarantäne gezählt), Abbruch löscht die Datei |
 | Download-Liste | Fortschritt, Urteile, Route, Aufräumen |
-| Torrents | **Nicht implementiert.** Magnet-Links werden abgelehnt. Es läuft kein Torrent-Client, es wird keine `.torrent`-Datei gespeichert und es wird nichts geseedet. |
+| Torrents | **Nicht implementiert.** Magnet-Links werden abgelehnt. Es läuft kein Torrent-Client, es wird nichts geseedet. Eine `.torrent`-Datei über HTTPS ist ein gewöhnlicher Datei-Download: sie wird geprüft und abgelegt, aber weder geöffnet noch geseedet. |
 | Dienst `tvpnd` | Protokoll, Named Pipe mit Token/ACL, enable/disable/panic/recover, Dienstinstallation, echte WFP-/Tor-/Mullvad-Anbindung |
 | WFP | Default-Deny plus Tor-/Mullvad-Permit; in der VM 12 Filter, Verkehr blockiert; Interface-Bindung (S1) offen |
 | Tor | Control-Client und echter `tor.exe`; in der VM Bootstrap 100 und Circuit |
 | VPN | Mullvad-CLI-Wrapper; ohne Konto und App ungeprüft |
 | Wächter | Hintergrund-Wächter alle 5 s plus Status-Poll; eigener Prozess offen |
-| Panik | UI-Button, Tray-Menü und globaler Hotkey `Ctrl+Alt+Shift+F12`; Schließen blendet ins Tray |
+| Panik | UI-Button, Tray-Menü und globaler Hotkey `Ctrl+Alt+Shift+F12`: beendet Tor und VPN, entfernt die Firewall, das Netz ist danach **offen**; danach öffnet sich die Sitzungs-Zusammenfassung (eine Panik aus `Aus` erzeugt keine neue); Schließen blendet ins Tray |
 | Installer | NSIS perMachine mit Dienst und Tor; in der VM Installation, Enable, Panik und Uninstall grün; unsigniert |
-| Tests | `just verify`, Playwright-E2E, VM-Smoke-Tests, Installer-Smoke |
+| Tests | `just verify` (Service- und Shell-Tests, UI-Unit-Tests, Checks), Playwright-E2E, VM-Smoke-Tests, Installer-Smoke |
 | macOS-Build | Ad-hoc signierte `.app` aus der CI; kein Schutz, keine Notarisierung |
 
 ## Was ausdrücklich fehlt
@@ -91,7 +93,7 @@ Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert
 - **Hostname**: S3 verlangt einen Neustart; die UI zeigt `hostname_unchanged`. Die einmalige Neutralisierung im Setup fehlt.
 - **Torrents**: Nicht implementiert. Ein BitTorrent-Client bräuchte die verifizierte VPN-Interface-Bindung und eine Upload-Regel; beides fehlt. Magnet-Links werden abgelehnt, es wird nichts geseedet.
 - **Tor Browser starten**, Block-Erkennung und Fallback-Browser, aria2 und die VPN-Download-Route.
-- **Eigener Wächterprozess**, Tray-Icon und Panik-Hotkey.
+- **Eigener Wächterprozess**: Der Wächter läuft im Dienst, nicht als getrennter Prozess. Tray-Icon und Panik-Hotkey funktionieren.
 - **Code-Signierung**, USB-Kit und Update-Kanal.
 - **macOS-Schutzfunktionen** (Firewall, VPN, MAC). Ein unsignierter Build-Check läuft in der CI, signiert und notarisiert ist nichts.
 - Spikes S2, S4, S5, S6 und die vollständige Leak-Matrix in der VM.
@@ -100,9 +102,14 @@ Kurz: Firewall und Tor sind verdrahtet, die VPN-Kette und die Hardware-Features 
 
 ## Screenshots
 
-![Geschützt, hell](docs/reports/screens/light-state-ready.png)
-![Geschützt, dunkel](docs/reports/screens/dark-state-ready.png)
-![Einstellungen](docs/reports/screens/light-settings.png)
+![Zustand „Geschützt“, hell (älterer Build)](docs/reports/screens/light-state-ready.png)
+![Zustand „Geschützt“, dunkel (älterer Build)](docs/reports/screens/dark-state-ready.png)
+![Einstellungen (älterer Build)](docs/reports/screens/light-settings.png)
+
+Die Bilder zeigen einen älteren Build: dort heißen die Zustände noch anders
+(„Geschützt“ statt „Tor aktiv“), die Panik-Schaltfläche ist anders beschriftet
+und der Downloader nennt noch ClamAV statt Windows Defender. Neu aufnehmen mit
+`bun --cwd=ui run preview` und `bun --cwd=ui run shots`.
 
 ## Selbst bauen
 
@@ -111,9 +118,13 @@ Voraussetzungen: Windows 11, Rust (stable, MSVC), Visual Studio Build Tools mit 
 ```powershell
 git clone https://github.com/Creeper100GB/TVPN-Pro.git
 cd TVPN-Pro
-just verify                 # fmt, clippy, Tests, PowerShell-Check, Redaktions-Gate
 cd ui
-bun install
+bun install                 # zuerst: `just verify` ruft ui-check und ui-build auf
+cd ..
+just verify                 # alles außer den Playwright-E2E: fmt, clippy, Tests (Service und
+                            # Shell), UI-Unit-Tests, PowerShell-Check, Redaktions-Gate,
+                            # UI-Check, UI-Build
+cd ui
 bun run dev                 # Browser-Vorschau auf 5173
 bun run tauri dev           # echtes Fenster (baut die Rust-Shell)
 ```
@@ -134,9 +145,9 @@ Der Installer landet unter `ui/src-tauri/target/release/bundle/nsis/`.
 | Route | Was passiert | Grenze |
 |---|---|---|
 | Über Tor | HTTPS über einen lokalen SOCKS-Proxy auf `127.0.0.1:9150` | Braucht einen laufenden Tor-Proxy; ohne ihn Fehler |
-| Direkt | HTTPS ohne Tunnel | Ungeschützt: der Server sieht deine echte IP |
+| Direkt | HTTPS ohne Tunnel | Ungeschützt: der Server sieht deine echte IP. Solange die Firewall scharf ist, lehnt die Oberfläche die Route ab; ein direkter Download käme an der Allowlist (nur Tor und VPN) ohnehin nicht vorbei |
 | Über VPN | wird abgelehnt | Braucht `tvpnd` und die WFP-Firewall |
-| Torrent | nur mit `torrent_mode = vpn_only` | Ohne VPN-Route gesperrt; nie über Tor |
+| Torrent | wird immer abgelehnt | Kein Torrent-Client implementiert: Magnet-Links werden abgewiesen. Eine `.torrent`-Datei über HTTPS ist ein gewöhnlicher Datei-Download und wird weder geöffnet noch geseedet |
 
 Dateien landen in `%USERPROFILE%\Downloads\TVPN`. Bei Abbruch wird die Datei gelöscht.
 

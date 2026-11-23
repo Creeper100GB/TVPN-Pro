@@ -64,6 +64,31 @@ fn filter_key(index: u128) -> GUID {
     GUID::from_u128(FILTER_BASE + index)
 }
 
+/// Filters that `arm_default_deny` installs: one block and one loopback permit
+/// per ALE layer.
+const BASE_FILTERS: usize = LAYERS.len() * 2;
+
+/// Synthetic error code for "our filters are still present after a disarm".
+/// WFP has no matching HRESULT, and the caller only needs the failure.
+const ERR_LEFTOVER_FILTERS: u32 = 0x8007_0bad;
+
+/// Expected number of our filters for `permitted` allowed programs.
+///
+/// The leak check compares the live filter count against this value instead of
+/// a bare minimum: a single missing block filter must not pass.
+pub fn filter_count_for(permitted: usize) -> usize {
+    BASE_FILTERS + permitted * LAYERS.len()
+}
+
+/// True when the live filter set covers every filter we expect.
+///
+/// A partial set (permits without the block filters, or half of the ALE layers)
+/// leaves traffic unblocked, so it must not count as armed. `expected == 0`
+/// means we cannot say what a complete set is, and that is not armed either.
+pub fn filters_are_complete(filters: usize, expected: usize) -> bool {
+    expected > 0 && filters >= expected
+}
+
 fn wide(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(std::iter::once(0)).collect()
 }
@@ -297,11 +322,21 @@ impl WfpEngine {
         Ok(())
     }
 
-    /// Removes only our filters and sublayer.
+    /// Removes only our filters and sublayer. Fails when anything is left, so
+    /// a failed delete cannot be reported as a clean teardown.
     pub fn disarm(&mut self) -> Result<(), WfpError> {
         self.delete_owned();
         self.permitted = 0;
+        let leftovers = self.verify();
+        if leftovers > 0 {
+            return Err(WfpError(ERR_LEFTOVER_FILTERS));
+        }
         Ok(())
+    }
+
+    /// Expected number of filters for the currently permitted programs.
+    pub fn expected_filter_count(&self) -> usize {
+        filter_count_for(self.permitted)
     }
 
     fn delete_owned(&self) {
@@ -389,6 +424,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn expected_count_covers_blocks_loopback_and_permits() {
+        assert_eq!(filter_count_for(0), 8);
+        assert_eq!(filter_count_for(1), 12);
+        assert_eq!(filter_count_for(MAX_PERMITTED_APPS), 8 + 4 * 4);
+    }
+
+    #[test]
+    fn complete_filter_set_needs_every_expected_filter() {
+        assert!(!filters_are_complete(0, 0));
+        assert!(filters_are_complete(8, 8));
+        assert!(!filters_are_complete(7, 8));
+        assert!(!filters_are_complete(8, 12));
+        assert!(filters_are_complete(12, 12));
+    }
+
+    #[test]
     fn keys_are_unique_and_nonzero() {
         assert_ne!(filter_key(0), filter_key(1));
         assert_ne!(filter_key(0), GUID::default());
@@ -402,7 +453,7 @@ mod tests {
     fn default_deny_arms_and_disarms_in_the_vm() {
         let mut engine = WfpEngine::open().expect("open WFP");
         engine.arm_default_deny().expect("arm");
-        assert_eq!(engine.verify(), 8);
+        assert_eq!(engine.verify(), engine.expected_filter_count());
         engine.disarm().expect("disarm");
         assert_eq!(engine.verify(), 0);
     }

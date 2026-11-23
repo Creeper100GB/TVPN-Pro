@@ -6,12 +6,13 @@
 - `%ProgramData%\TVPN` bekommt eine restriktive DACL; Token, Owner-SID und Settings werden atomar mit expliziter DACL geschrieben. Owner-SIDs werden vor der SDDL-Nutzung validiert.
 - Tor wird vor dem Start gegen einen gepinnten SHA-256 geprüft. Der Tor-Permit wird erst nach dem VPN-Schritt gesetzt, nicht während des Verbindungsaufbaus.
 - Test-Environment-Overrides gelten nur in Debug-Builds. Der unnötige Webview-Befehl `service_install` wurde entfernt.
-- Downloader: Staging außerhalb des Download-Ordners, Größenlimit, Redirect-Validierung, reservierte Windows-Namen, Aufräumen partieller Dateien, Abbruch aller Downloads bei Panic/Disable.
+- Downloader: Staging außerhalb des Download-Ordners, Größenlimit, Redirect-Validierung, reservierte Windows-Namen, Aufräumen partieller Dateien; Panic/Disable fordern den Abbruch aller Downloads an (Cancel-Flag, gelöscht wird im laufenden Download-Task).
 - UI: ehrliche Zustände (Tor-only, ungeprüfte VPN-Kette), korrekte Panic-Taste, keine Fake-Angaben zu MAC, Hostname, Portal, Torrents oder Hash-Abfrage. Dienstausfall zeigt keinen falschen READY-Zustand mehr.
-- Torrents sind ausdrücklich nicht implementiert: kein Client, keine `.torrent`-Datei, kein Seeding. Magnet-Links werden abgelehnt.
+- Torrents sind ausdrücklich nicht implementiert: kein Client, keine Seed-Funktion; eine `.torrent`-Datei über HTTPS ist ein gewöhnlicher Download. Magnet-Links werden abgelehnt.
 - `install.ps1` verweigert die Installation ohne `SHA256SUMS.txt`.
 - VM-Tests: sauberer Dienststopp mit erhaltener Sperre, Uninstall im bewaffneten Zustand, `check.torproject.org` meldet `IsTor=True` (Exit-IP wird nicht ausgegeben).
-- Winget-Manifest für `0.1.6` ist mit `winget validate` geprüft; der PR `microsoft/winget-pkgs#486611` wartet auf die Microsoft-CLA und die finale Installation-Validierung. Lokal ist `winget install --manifest packaging\winget\...` sofort nutzbar.
+- Winget-Manifest für `0.1.6` ist mit `winget validate` geprüft; der PR `microsoft/winget-pkgs#486611` ist offen, alle zehn Validierungsschritte sind grün (darunter `license/cla`, die Installations- und die Installer-Metadaten-Validierung) und er wartet nur noch auf das Review durch einen Maintainer. Lokal ist `winget install --manifest packaging\winget\...` sofort nutzbar.
+- Winget-Installationsfehler behoben: `tvpnd.exe` linkt die VC-Runtime jetzt statisch (`static_vcruntime`); der Installer benötigt auf einem frischen Windows kein `VCRUNTIME140.dll` mehr. Der Postinstall-Dialog blockierte die unattended Validierung. Der Installer und die SHA-256 im Manifest wurden entsprechend neu gebaut.
 
 ## 0.1.2 – Alpha (2026-11-21)
 

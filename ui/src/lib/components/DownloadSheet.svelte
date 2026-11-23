@@ -26,7 +26,9 @@
 
 	const routeWarning = $derived(
 		route === 'direct'
-			? 'Ungeschützt: der Server sieht deine echte IP. Nur für Images mit Prüfsumme.'
+			? app.firewallArmed
+				? 'Direkt ist gesperrt, solange die Firewall scharf ist: die Allowlist lässt nur Tor und VPN raus. Schalte den Schutz aus, um direkt zu laden.'
+				: 'Ungeschützt: der Server sieht deine echte IP. Nur für Images mit Prüfsumme.'
 			: 'Braucht einen Tor-Proxy auf 127.0.0.1:9150.'
 	);
 
@@ -34,6 +36,7 @@
 		clean: 'Sauber',
 		warned: 'Warnung',
 		quarantined: 'Quarantäne',
+		quarantine_failed: 'Quarantäne fehlgeschlagen',
 		failed: 'Fehlgeschlagen',
 		threat: 'Fund',
 		unknown: 'Unklar'
@@ -49,6 +52,15 @@
 
 	async function submit() {
 		const value = url.trim();
+
+		// While the default-deny firewall is armed, a direct download cannot
+		// reach the network at all. Say so instead of warning about the real IP.
+		if (route === 'direct' && app.firewallArmed) {
+			error =
+				'Direkt ist gesperrt, solange die Firewall scharf ist. Schalte den Schutz aus oder lade über Tor.';
+			return;
+		}
+
 		const parsed = parseDownloadInput(value, route);
 		if (!parsed.ok) {
 			error = parsed.error;
@@ -90,7 +102,7 @@
 <Sheet
 	bind:open={app.downloadsOpen}
 	title="Downloads"
-	subtitle="Über Tor läuft alles durch den Tunnel. Direkt ist ungeschützt."
+	subtitle="Über Tor läuft alles durch den Tunnel. Direkt ist ungeschützt und nur bei ausgeschalteter Firewall möglich."
 >
 	<div class="route-row">
 		<Segmented
@@ -326,6 +338,7 @@
 	}
 
 	.verdict[data-verdict='quarantined'],
+	.verdict[data-verdict='quarantine_failed'],
 	.verdict[data-verdict='failed'] {
 		color: var(--danger);
 		background: color-mix(in oklab, var(--danger) 12%, transparent);

@@ -31,6 +31,7 @@ const ALLOWED: &[&str] = &[
     "get_status",
     "get_settings",
     "set_settings",
+    "get_session_summary",
 ];
 
 fn programdata() -> PathBuf {
@@ -211,4 +212,17 @@ pub async fn service_command(
 pub fn panic_now(client: &ServiceClient) -> Result<Value, String> {
     let _guard = client.0.lock().map_err(|_| "service_lock".to_owned())?;
     call("panic", json!({}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ALLOWED;
+
+    #[test]
+    fn session_summary_is_allowed_for_the_ui() {
+        assert!(
+            ALLOWED.contains(&"get_session_summary"),
+            "the UI must be able to read the session summary after disable/panic"
+        );
+    }
 }

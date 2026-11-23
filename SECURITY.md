@@ -2,7 +2,7 @@
 
 ## Status
 
-Alpha. Es gibt keine unterstützte Version, und die Schutzfunktionen (Firewall, VPN, Tor-Integration) sind noch nicht implementiert. Ein „Security-Bug" kann also auch einfach ein fehlendes Feature sein. Bitte prüfe zuerst `README.md` und `docs/THREAT_MODEL.md`.
+Alpha. Es gibt keine unterstützte Version. Firewall (WFP-Default-Deny) und Tor sind implementiert, die VPN-zu-Tor-Kette ist ohne Mullvad-Konto ungeprüft, MAC-Wechsel und Hostname sind offen. Ein „Security-Bug" kann also auch einfach ein fehlendes Feature sein. Bitte prüfe zuerst `README.md` und `docs/THREAT_MODEL.md`.
 
 ## Lücke melden
 
@@ -27,7 +27,7 @@ Alpha. Es gibt keine unterstützte Version, und die Schutzfunktionen (Firewall, 
 
 ## Außerhalb des Scopes
 
-- Fehlende Features (Firewall, VPN, Tor, MAC, Wächter).
+- Fehlende Features (VPN-Interface-Bindung, MAC, eigener Wächter, Tor Browser, aria2, ClamAV).
 - Grenzen von Tor, VPN-Anbietern oder Browsern, die im Threat Model stehen.
 - Angriffe, die Administrator- oder Kernel-Rechte voraussetzen.
 - Social Engineering.

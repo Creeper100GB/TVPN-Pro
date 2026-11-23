@@ -14,9 +14,11 @@ Danke, dass du reinschaust. Das Projekt ist eine Alpha und lebt von Leuten, die 
 ```powershell
 git clone https://github.com/Creeper100GB/TVPN-Pro.git
 cd TVPN-Pro
-just verify
 cd ui
 bun install
+cd ..
+just verify
+cd ui
 bun run check
 bun run e2e
 ```

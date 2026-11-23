@@ -86,6 +86,27 @@ test('UI: enable, add a download, verdict, disable, clear the list', async ({ pa
 	await expect(downloadsAgain.getByText('Keine Downloads in dieser Sitzung.')).toBeVisible();
 });
 
+test('direct route is refused while the firewall is armed', async ({ page }) => {
+	await page.goto('/');
+
+	await expect(page.getByRole('heading', { name: 'Aus' })).toBeVisible();
+	await page.getByRole('button', { name: 'Schutz einschalten' }).click();
+	await expect(page.getByRole('heading', { name: 'Tor aktiv' })).toBeVisible({ timeout: 15_000 });
+
+	await page.getByRole('button', { name: 'Downloads öffnen' }).click();
+	const downloads = page.getByRole('dialog', { name: 'Downloads' });
+	await expect(downloads).toBeVisible();
+
+	// The default-deny allowlist would drop the connection, so the sheet refuses
+	// the route instead of promising a download that cannot happen.
+	await downloads.getByRole('button', { name: 'Direkt' }).click();
+	await downloads.getByLabel('Download-URL').fill('https://example.org/sample.bin');
+	await downloads.getByRole('button', { name: 'Hinzufügen' }).click();
+
+	await expect(downloads.getByRole('alert')).toContainText('Direkt ist gesperrt');
+	await expect(downloads.getByTestId('download-item')).toHaveCount(0);
+});
+
 test('torrents are refused as not implemented', async ({ page }) => {
 	await page.goto('/');
 

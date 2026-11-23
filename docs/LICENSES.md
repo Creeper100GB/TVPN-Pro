@@ -41,6 +41,7 @@ Nicht mitgeliefert, nur genutzt: Windows Defender (`MpCmdRun.exe`) ist Teil von 
 | base64 (tvpnd) | Token-Kodierung (base64url) | MIT oder Apache-2.0 | ungeprüft |
 | getrandom (tvpnd) | CSPRNG für das Sitzungs-Token | MIT oder Apache-2.0 | ungeprüft |
 | windows-service (tvpnd) | Windows-Dienst-Wrapper | MIT oder Apache-2.0 | ungeprüft |
+| static_vcruntime (tvpnd, Build-Zeit) | Statisch gelinkte VC-Runtime für den Installer | MIT OR Apache-2.0 OR Zlib (Erwartung) | ungeprüft — Prüfprotokoll fehlt: vor dem nächsten Release Lizenzfeld der Crate-Metadaten für 3.0.0 mit Datum und Quelle hier eintragen |
 | reqwest, tokio, sha2, futures-util (Tauri-Shell) | Download-Engine | MIT oder Apache-2.0 | ungeprüft |
 | Transitive Crates laut `Cargo.lock` (itoa, memchr, zmij, proc-macro2, quote, syn, unicode-ident, serde_core, serde_derive, hyper, native-tls u. a.) | Build und Laufzeit | MIT oder Apache-2.0 (pro Crate) | ungeprüft, `cargo deny` folgt in Phase 2 |
 | Windows-/`windows`-Crate | Win32-APIs | MIT oder Apache-2.0 | ungeprüft |

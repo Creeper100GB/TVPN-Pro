@@ -55,7 +55,7 @@ impl std::error::Error for UrlError {}
 /// Longest accepted URL, in bytes.
 pub const MAX_URL_BYTES: usize = 8192;
 
-const LOCAL_SUFFIXES: [&str; 4] = [".local", ".internal", ".lan", ".home.arpa"];
+const LOCAL_SUFFIXES: [&str; 5] = [".local", ".internal", ".lan", ".home.arpa", ".localdomain"];
 
 /// Validates an HTTPS URL against the contract.
 pub fn validate(input: &str) -> Result<(), UrlError> {
@@ -143,22 +143,23 @@ fn validate_host(host: &str) -> Result<(), UrlError> {
         return Err(UrlError::InvalidHost);
     }
 
-    if host == "localhost" || host.ends_with(".localhost") {
+    if host == "localhost" || host.ends_with(".localhost") || host == "localdomain" {
         return Err(UrlError::LocalHost);
     }
     if LOCAL_SUFFIXES.iter().any(|suffix| host.ends_with(suffix)) {
         return Err(UrlError::LocalHost);
     }
 
+    let labels: Vec<&str> = host.split('.').collect();
+
     // An IPv4 literal is never a download host. `Ipv4Addr` is strict about the
-    // four-octet form; the digit/dot fallback catches shorthand like 127.1.
-    if host.parse::<Ipv4Addr>().is_ok()
-        || (host.contains('.') && host.chars().all(|c| c.is_ascii_digit() || c == '.'))
-    {
+    // four-octet form; the numeric-label rule also catches the shorthand,
+    // octal and 0x-hex forms that the HTTP client would normalise to an
+    // address (`0x7f.0.0.1` becomes 127.0.0.1).
+    if host.parse::<Ipv4Addr>().is_ok() || labels.iter().all(|label| is_numeric_label(label)) {
         return Err(UrlError::IpLiteral);
     }
 
-    let labels: Vec<&str> = host.split('.').collect();
     if labels.len() < 2 {
         return Err(UrlError::InvalidHost);
     }
@@ -175,6 +176,18 @@ fn validate_host(host: &str) -> Result<(), UrlError> {
     }
 
     Ok(())
+}
+
+/// A label that only encodes a number: decimal, octal or `0x`-hex. Every
+/// label of such a host is a number, so the whole host is an address.
+fn is_numeric_label(label: &str) -> bool {
+    if label.is_empty() {
+        return false;
+    }
+    if let Some(hex) = label.strip_prefix("0x") {
+        return !hex.is_empty() && hex.chars().all(|c| c.is_ascii_hexdigit());
+    }
+    label.chars().all(|c| c.is_ascii_digit())
 }
 
 #[cfg(test)]
@@ -236,6 +249,48 @@ mod tests {
             validate("https://[2001:db8::1]/x"),
             Err(UrlError::IpLiteral)
         );
+    }
+
+    #[test]
+    fn rejects_hex_and_octal_ip_notation() {
+        // The HTTP client normalises these to 127.0.0.1; the validator sees a
+        // hostname and would let them through without this rule.
+        assert_eq!(validate("https://0x7f.0.0.0.1/"), Err(UrlError::IpLiteral));
+        assert_eq!(
+            validate("https://0x7f.0x0.0x0.0x1/"),
+            Err(UrlError::IpLiteral)
+        );
+        assert_eq!(validate("https://0177.0.0.1/"), Err(UrlError::IpLiteral));
+        assert_eq!(
+            validate("https://0x7f.0.0.1/file"),
+            Err(UrlError::IpLiteral)
+        );
+    }
+
+    #[test]
+    fn rejects_compressed_ipv4_boundaries() {
+        // Both normalise to 127.0.0.1 in the HTTP client.
+        assert_eq!(validate("https://2130706433/"), Err(UrlError::IpLiteral));
+        assert_eq!(validate("https://0x7f000001/"), Err(UrlError::IpLiteral));
+        // A numeric label next to real labels is a hostname, not an address.
+        assert_eq!(validate("https://1.example.org/"), Ok(()));
+    }
+
+    #[test]
+    fn rejects_localdomain_and_localhost_subdomains() {
+        assert_eq!(
+            validate("https://localhost.localdomain/"),
+            Err(UrlError::LocalHost)
+        );
+        assert_eq!(
+            validate("https://box.localdomain/x"),
+            Err(UrlError::LocalHost)
+        );
+        assert_eq!(
+            validate("https://api.localhost/x"),
+            Err(UrlError::LocalHost)
+        );
+        assert_eq!(validate("https://localdomain/x"), Err(UrlError::LocalHost));
     }
 
     #[test]

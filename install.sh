@@ -2,8 +2,9 @@
 # TVPN Pro installer for macOS.
 #
 # There is no public macOS release yet. This script finds a .dmg or .zip asset
-# in the GitHub releases, verifies SHA256SUMS.txt when present and copies the
-# app to ~/Applications. Signing and notarization are still missing.
+# in the GitHub releases, requires SHA256SUMS.txt and verifies the hash before
+# it copies the app to ~/Applications. Signing and notarization are still
+# missing.
 
 set -euo pipefail
 
@@ -54,28 +55,29 @@ name="$(basename "$download" | sed 's/%20/ /g')"
 file="${tmp}/${name}"
 curl -fsSL "$download" -o "$file"
 
-if [ -n "$sums_url" ]; then
-    echo "==> Kontrolliere SHA-256"
-    curl -fsSL "$sums_url" -o "$tmp/SHA256SUMS.txt"
-    normalized="$(printf '%s' "$name" | tr -d ' .')"
-    expected="$(awk -v want="$normalized" '{
-        hash=$1;
-        line=$0;
-        sub(/^[^ ]+[ ]+/, "", line);
-        gsub(/[ .]/, "", line);
-        if (line == want) { print hash; exit }
-    }' "$tmp/SHA256SUMS.txt")"
-    if [ -z "$expected" ]; then
-        echo "Keine SHA-256-Zeile zu ${name} gefunden." >&2
-        exit 1
-    fi
-    actual="$(shasum -a 256 "$file" | awk '{print $1}')"
-    if [ "$actual" != "$expected" ]; then
-        echo "SHA-256 stimmt nicht. Erwartet: ${expected}. Erhalten: ${actual}." >&2
-        exit 1
-    fi
-else
-    echo "Warnung: keine SHA256SUMS.txt im Release, SHA-256-Kontrolle entfällt." >&2
+if [ -z "$sums_url" ]; then
+    echo "Keine SHA256SUMS.txt im Release. Ohne Prüfsumme wird nichts installiert." >&2
+    exit 1
+fi
+
+echo "==> Kontrolliere SHA-256"
+curl -fsSL "$sums_url" -o "$tmp/SHA256SUMS.txt"
+normalized="$(printf '%s' "$name" | tr -d ' .')"
+expected="$(awk -v want="$normalized" '{
+    hash=$1;
+    line=$0;
+    sub(/^[^ ]+[ ]+/, "", line);
+    gsub(/[ .]/, "", line);
+    if (line == want) { print hash; exit }
+}' "$tmp/SHA256SUMS.txt")"
+if [ -z "$expected" ]; then
+    echo "Keine SHA-256-Zeile zu ${name} gefunden." >&2
+    exit 1
+fi
+actual="$(shasum -a 256 "$file" | awk '{print $1}')"
+if [ "$actual" != "$expected" ]; then
+    echo "SHA-256 stimmt nicht. Erwartet: ${expected}. Erhalten: ${actual}." >&2
+    exit 1
 fi
 
 case "$name" in

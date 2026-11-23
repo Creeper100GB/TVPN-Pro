@@ -39,6 +39,7 @@ export type ScanVerdict =
 	| 'clean'
 	| 'warned'
 	| 'quarantined'
+	| 'quarantine_failed'
 	| 'failed'
 	| 'threat'
 	| 'unknown';

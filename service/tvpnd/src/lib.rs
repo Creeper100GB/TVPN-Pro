@@ -233,10 +233,33 @@ impl Service {
     }
 
     fn disable(&mut self, request: &Request) -> Response {
-        if self.state == State::Off || self.state == State::Teardown {
+        if self.state == State::Off {
             return Response::ok(
                 request.id.as_str(),
                 json!({ "accepted": false, "state": self.state.as_str() }),
+            );
+        }
+
+        // A teardown that did not finish leaves the service in TEARDOWN. The
+        // user's "disable" must not be a silent no-op there: retry the shutdown
+        // and the disarm, and stay fail-closed when the retry fails again.
+        if self.state == State::Teardown {
+            if let Err(error) = self.backend.shutdown() {
+                self.failure_code = Some(error.code.to_owned());
+                self.add_banner("failclosed");
+                return Response::error(request.id.as_str(), error.code, Some(error.detail));
+            }
+            if let Err(error) = self.backend.disarm() {
+                self.failure_code = Some(error.code.to_owned());
+                self.add_banner("failclosed");
+                return Response::error(request.id.as_str(), error.code, Some(error.detail));
+            }
+            let _ = self.transition(Event::TeardownDone);
+            self.banners.clear();
+            self.failure_code = None;
+            return Response::ok(
+                request.id.as_str(),
+                json!({ "accepted": true, "state": self.state.as_str() }),
             );
         }
 
@@ -270,23 +293,35 @@ impl Service {
     }
 
     fn panic(&mut self, request: &Request) -> Response {
+        let reached = self.state.as_str();
+
         if let Err(error) = self.transition(Event::Panic) {
             return error_response(request, error);
         }
 
+        // A failed teardown after a panic stays in TEARDOWN: contract section 8
+        // allows RECOVERY only through `recover` or `disable`, never through
+        // `panic`. The network stays closed and the UI offers the reset.
         if let Err(error) = self.backend.shutdown() {
-            let _ = self.transition(Event::TeardownIncomplete);
             self.failure_code = Some(error.code.to_owned());
             self.add_banner("failclosed");
             return Response::error(request.id.as_str(), error.code, Some(error.detail));
         }
         if let Err(error) = self.backend.disarm() {
-            let _ = self.transition(Event::TeardownIncomplete);
             self.failure_code = Some(error.code.to_owned());
             self.add_banner("failclosed");
             return Response::error(request.id.as_str(), error.code, Some(error.detail));
         }
         let _ = self.transition(Event::TeardownDone);
+        // Panic ends protection exactly like disable; the UI shows the same
+        // summary afterwards instead of nothing. A panic from OFF has no
+        // session to summarize, and a second panic (tray hotkey plus UI button)
+        // must not overwrite the summary of the session it already ended.
+        // TEARDOWN is not a state a session reached: it is the state a session
+        // ends in, so it must never be reported as `state_reached`.
+        if reached != "OFF" && reached != "TEARDOWN" {
+            self.last_summary = Some(self.summary(reached, self.state.as_str()));
+        }
         self.banners.clear();
         self.failure_code = None;
 
@@ -695,6 +730,147 @@ mod tests {
         let response = service.handle(&request("panic", "p", Value::Null));
         assert!(response.ok);
         assert_eq!(service.state, State::Off);
+    }
+
+    #[test]
+    fn panic_writes_a_session_summary() {
+        let mut service = authorized();
+        assert!(enable(&mut service).ok);
+        assert!(service.last_summary.is_none());
+
+        assert!(service.handle(&request("panic", "p", Value::Null)).ok);
+
+        let summary = service.last_summary.clone().expect("panic summary");
+        assert_eq!(summary["ended_state"], "OFF");
+        assert_eq!(summary["state_reached"], "READY");
+    }
+
+    #[test]
+    fn panic_from_off_does_not_write_a_summary() {
+        let mut service = authorized();
+        assert_eq!(service.state, State::Off);
+
+        assert!(service.handle(&request("panic", "p", Value::Null)).ok);
+
+        assert_eq!(service.state, State::Off);
+        assert!(service.last_summary.is_none());
+    }
+
+    #[test]
+    fn second_panic_keeps_the_first_summary() {
+        let mut service = authorized();
+        assert!(enable(&mut service).ok);
+        assert!(service.handle(&request("panic", "p1", Value::Null)).ok);
+        let first = service.last_summary.clone().expect("first summary");
+        assert_eq!(first["state_reached"], "READY");
+
+        // A tray hotkey and the UI button can both fire; the second panic runs
+        // from OFF and must not replace the READY summary with an OFF one.
+        assert!(service.handle(&request("panic", "p2", Value::Null)).ok);
+
+        let second = service.last_summary.clone().expect("kept summary");
+        assert_eq!(second["state_reached"], "READY");
+        assert_eq!(second["ended_state"], "OFF");
+    }
+
+    #[test]
+    fn panic_with_failing_shutdown_stays_in_teardown() {
+        let mut service = authorized_with(Box::new(MockBackend::failing_shutdown()));
+        assert!(
+            enable(&mut service).ok,
+            "enable must succeed before the panic"
+        );
+
+        let response = service.handle(&request("panic", "p", Value::Null));
+
+        assert!(!response.ok);
+        assert_eq!(response.error.unwrap().code, "E_FIREWALL_RECOVERY_FAILED");
+        // Contract section 8: a panic ends in TEARDOWN, never in RECOVERY.
+        assert_eq!(service.state, State::Teardown);
+        assert_eq!(service.status()["state"], "TEARDOWN");
+        assert_eq!(
+            service.failure_code.as_deref(),
+            Some("E_FIREWALL_RECOVERY_FAILED")
+        );
+        assert!(service.banners.iter().any(|banner| banner == "failclosed"));
+        assert!(service.last_summary.is_none());
+    }
+
+    #[test]
+    fn panic_with_failing_disarm_stays_in_teardown() {
+        let mut service = authorized_with(Box::new(MockBackend::failing_disarm()));
+        assert!(
+            enable(&mut service).ok,
+            "enable must succeed before the panic"
+        );
+
+        let response = service.handle(&request("panic", "p", Value::Null));
+
+        assert!(!response.ok);
+        assert_eq!(response.error.unwrap().code, "E_FIREWALL_RECOVERY_FAILED");
+        assert_eq!(service.state, State::Teardown);
+        assert_eq!(service.status()["state"], "TEARDOWN");
+        assert_eq!(
+            service.failure_code.as_deref(),
+            Some("E_FIREWALL_RECOVERY_FAILED")
+        );
+        assert!(service.banners.iter().any(|banner| banner == "failclosed"));
+        assert!(service.last_summary.is_none());
+    }
+
+    #[test]
+    fn a_panic_from_teardown_writes_no_summary() {
+        let mut service = authorized_with(Box::new(MockBackend::failing_shutdown_once()));
+        assert!(enable(&mut service).ok);
+
+        // The first panic fails to shut down and leaves the service in TEARDOWN.
+        assert!(!service.handle(&request("panic", "p1", Value::Null)).ok);
+        assert_eq!(service.state, State::Teardown);
+
+        // A second panic completes the teardown. The session reached READY, not
+        // TEARDOWN, so nothing is written under a TEARDOWN heading.
+        assert!(service.handle(&request("panic", "p2", Value::Null)).ok);
+        assert_eq!(service.state, State::Off);
+        assert!(service.last_summary.is_none());
+    }
+
+    #[test]
+    fn disable_retries_a_stuck_teardown() {
+        let mut service = authorized_with(Box::new(MockBackend::failing_shutdown_once()));
+        assert!(enable(&mut service).ok);
+        assert!(!service.handle(&request("panic", "p1", Value::Null)).ok);
+        assert_eq!(service.state, State::Teardown);
+
+        // The user presses disable: the stuck teardown is retried instead of
+        // answering accepted:false while nothing moves.
+        let response = service.handle(&request(
+            "disable",
+            "d",
+            json!({ "downloads_policy": "wait" }),
+        ));
+
+        assert!(response.ok);
+        assert_eq!(response.data.unwrap()["accepted"], true);
+        assert_eq!(service.state, State::Off);
+        assert!(service.banners.is_empty());
+        assert!(service.failure_code.is_none());
+    }
+
+    #[test]
+    fn a_failing_teardown_retry_stays_fail_closed() {
+        let mut service = authorized_with(Box::new(MockBackend::failing_shutdown()));
+        assert!(enable(&mut service).ok);
+        assert!(!service.handle(&request("panic", "p1", Value::Null)).ok);
+
+        let response = service.handle(&request(
+            "disable",
+            "d",
+            json!({ "downloads_policy": "wait" }),
+        ));
+
+        assert!(!response.ok);
+        assert_eq!(service.state, State::Teardown);
+        assert!(service.banners.iter().any(|banner| banner == "failclosed"));
     }
 
     #[test]
