@@ -4,7 +4,7 @@
 
 - Fail-closed: WFP-Filter bleiben bei einem Dienststopp oder Absturz erhalten; nur `disable`, `panic`, `recover` oder Uninstall entfernen sie. Ein Neustart geht in `RECOVERY`.
 - `%ProgramData%\TVPN` bekommt eine restriktive DACL; Token, Owner-SID und Settings werden atomar mit expliziter DACL geschrieben. Owner-SIDs werden vor der SDDL-Nutzung validiert.
-- Tor wird vor dem Start gegen einen gepinnten SHA-256 geprüft. Der Tor-Permit wird erst nach dem VPN-Schritt gesetzt, nicht während des Verbindungsaufbaus.
+- Tor wird vor dem Start gegen einen gepinnten SHA-256 geprüft. Der Tor-Permit wird erst nach dem VPN-Schritt gesetzt, nicht während des Verbindungsaufbaus. Der app-eigene Tor läuft auf den dedizierten Loopback-Ports SOCKS 9250 / Control 9251, damit Tor Browser oder ein vorhandener System-Tor-Dienst auf 9150/9051 nicht kollidieren.
 - Test-Environment-Overrides gelten nur in Debug-Builds. Der unnötige Webview-Befehl `service_install` wurde entfernt.
 - Downloader: Staging außerhalb des Download-Ordners, Größenlimit, Redirect-Validierung, reservierte Windows-Namen, Aufräumen partieller Dateien; Panic/Disable fordern den Abbruch aller Downloads an (Cancel-Flag, gelöscht wird im laufenden Download-Task).
 - UI: ehrliche Zustände (Tor-only, ungeprüfte VPN-Kette), korrekte Panic-Taste, keine Fake-Angaben zu MAC, Hostname, Portal, Torrents oder Hash-Abfrage. Dienstausfall zeigt keinen falschen READY-Zustand mehr.

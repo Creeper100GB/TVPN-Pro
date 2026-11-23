@@ -151,7 +151,7 @@ Alles über `tests/vm/run-in-vm.ps1` oder von Hand in der VM.
 | Test | Befehl | Erwartung |
 |---|---|---|
 | Baseline ohne Schutz | `curl -s https://canary.example.net/echo` | echte IP des Anschlusses erscheint |
-| Über VPN + Tor | `curl -s --socks5-hostname 127.0.0.1:9150 https://canary.example.net/echo` | Exit-IP, nicht die echte |
+| Über VPN + Tor | `curl -s --socks5-hostname 127.0.0.1:9250 https://canary.example.net/echo` | Exit-IP, nicht die echte |
 | Direkt-Leak bei scharfer Firewall | `curl -s --max-time 5 https://canary.example.net/echo` | Timeout, kein Eintrag im Log |
 | UDP/QUIC-Leak | `nc -u canary.example.net 9999` plus ein Zeichen | kein Eintrag im Log |
 | IPv6-Leak | `curl -s -6 https://canary.example.net/echo` | Timeout, kein Eintrag |

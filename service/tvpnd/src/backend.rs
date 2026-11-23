@@ -20,6 +20,13 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 use tvpn_net::wfp::{filters_are_complete, WfpEngine};
 
+/// Dedicated loopback ports for the app's own Tor instance.
+///
+/// Tor Browser and a separately installed Tor service commonly occupy
+/// 9150/9051; the app must not fight them for those ports.
+const TOR_SOCKS_PORT: u16 = 9250;
+const TOR_CONTROL_PORT: u16 = 9251;
+
 /// A failure with a contract error code and a short machine detail.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BackendError {
@@ -297,7 +304,7 @@ impl RealBackend {
         if let Ok(value) = std::env::var("TVPN_TOR_CONTROL") {
             return value;
         }
-        "127.0.0.1:9051".to_owned()
+        format!("127.0.0.1:{TOR_CONTROL_PORT}")
     }
 
     fn read_status(&mut self) -> (bool, Option<String>) {
@@ -479,9 +486,9 @@ impl Backend for RealBackend {
         let mut command = Command::new(&tor_path);
         command
             .arg("--SocksPort")
-            .arg("9150")
+            .arg(TOR_SOCKS_PORT.to_string())
             .arg("--ControlPort")
-            .arg("9051")
+            .arg(TOR_CONTROL_PORT.to_string())
             .arg("--CookieAuthentication")
             .arg("1")
             .arg("--DataDirectory")

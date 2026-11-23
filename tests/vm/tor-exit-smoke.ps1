@@ -67,7 +67,7 @@ $status = Send 's' 'get_status' @{}
 if ($status.data.state -notin @('DEGRADED', 'READY')) { throw "unexpected state $($status.data.state)" }
 if (-not $status.data.tor.circuit) { throw 'no Tor circuit' }
 
-$api = & curl.exe -sS --fail --ssl-no-revoke --max-time 60 --socks5-hostname 127.0.0.1:9150 https://check.torproject.org/api/ip
+$api = & curl.exe -sS --fail --ssl-no-revoke --max-time 60 --socks5-hostname 127.0.0.1:9250 https://check.torproject.org/api/ip
 if ($LASTEXITCODE -ne 0) { throw "Tor check request failed with $LASTEXITCODE" }
 $result = $api | ConvertFrom-Json
 if ($result.IsTor -ne $true) {

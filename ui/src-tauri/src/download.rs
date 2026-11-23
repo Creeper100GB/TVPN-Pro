@@ -2,7 +2,7 @@
 //!
 //! This is shell-side on purpose until `tvpnd` exists (Phase 2). The routes are
 //! honest: `direct` is unprotected, `tor` requires a local SOCKS proxy on
-//! 127.0.0.1:9150, `vpn` is refused because the service owns that path.
+//! 127.0.0.1:9250, `vpn` is refused because the service owns that path.
 
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
@@ -123,7 +123,7 @@ async fn transfer(
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
     let proxy = if route == "tor" {
-        Some("socks5h://127.0.0.1:9150")
+        Some("socks5h://127.0.0.1:9250")
     } else {
         None
     };

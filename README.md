@@ -73,7 +73,7 @@ Bis dahin baut die CI eine unsignierte `.app` als Artefakt. Gatekeeper blockiert
 | Bereich | Stand |
 |---|---|
 | Oberfläche (Svelte 5, Tauri 2) | Alle elf Zustände, Einstellungen, Sitzungs-Zusammenfassung, Hell/Dunkel, macOS-artiges Fenster |
-| Download (Desktop) | Echt: HTTPS über `reqwest`, Routen **Direkt** und **über Tor** (lokaler SOCKS-Proxy 9150), SHA-256, Mark-of-the-Web für jede abgelegte Datei, Quarantäne bei Fund (als Quarantäne gezählt), Abbruch löscht die Datei |
+| Download (Desktop) | Echt: HTTPS über `reqwest`, Routen **Direkt** und **über Tor** (lokaler SOCKS-Proxy 9250), SHA-256, Mark-of-the-Web für jede abgelegte Datei, Quarantäne bei Fund (als Quarantäne gezählt), Abbruch löscht die Datei |
 | Download-Liste | Fortschritt, Urteile, Route, Aufräumen |
 | Torrents | **Nicht implementiert.** Magnet-Links werden abgelehnt. Es läuft kein Torrent-Client, es wird nichts geseedet. Eine `.torrent`-Datei über HTTPS ist ein gewöhnlicher Datei-Download: sie wird geprüft und abgelegt, aber weder geöffnet noch geseedet. |
 | Dienst `tvpnd` | Protokoll, Named Pipe mit Token/ACL, enable/disable/panic/recover, Dienstinstallation, echte WFP-/Tor-/Mullvad-Anbindung |
@@ -144,7 +144,7 @@ Der Installer landet unter `ui/src-tauri/target/release/bundle/nsis/`.
 
 | Route | Was passiert | Grenze |
 |---|---|---|
-| Über Tor | HTTPS über einen lokalen SOCKS-Proxy auf `127.0.0.1:9150` | Braucht einen laufenden Tor-Proxy; ohne ihn Fehler |
+| Über Tor | HTTPS über einen lokalen SOCKS-Proxy auf `127.0.0.1:9250` | Braucht einen laufenden Tor-Proxy; ohne ihn Fehler |
 | Direkt | HTTPS ohne Tunnel | Ungeschützt: der Server sieht deine echte IP. Solange die Firewall scharf ist, lehnt die Oberfläche die Route ab; ein direkter Download käme an der Allowlist (nur Tor und VPN) ohnehin nicht vorbei |
 | Über VPN | wird abgelehnt | Braucht `tvpnd` und die WFP-Firewall |
 | Torrent | wird immer abgelehnt | Kein Torrent-Client implementiert: Magnet-Links werden abgewiesen. Eine `.torrent`-Datei über HTTPS ist ein gewöhnlicher Datei-Download und wird weder geöffnet noch geseedet |

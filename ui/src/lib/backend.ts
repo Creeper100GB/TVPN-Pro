@@ -91,7 +91,7 @@ export function explainDownloadError(code: string): string {
 	const messages: Record<string, string> = {
 		vpn_requires_service: 'Die VPN-Route braucht den Dienst. Der kommt in Phase 2.',
 		route: 'Diese Route ist nicht verfügbar.',
-		network: 'Netzwerkfehler. Läuft der Tor-Proxy auf 127.0.0.1:9150?',
+		network: 'Netzwerkfehler. Läuft der Tor-Proxy auf 127.0.0.1:9250?',
 		proxy: 'Tor-Proxy konnte nicht gesetzt werden.',
 		cancelled: 'Abgebrochen.',
 		blocked_address:

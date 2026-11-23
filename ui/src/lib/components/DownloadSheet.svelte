@@ -29,7 +29,7 @@
 			? app.firewallArmed
 				? 'Direkt ist gesperrt, solange die Firewall scharf ist: die Allowlist lässt nur Tor und VPN raus. Schalte den Schutz aus, um direkt zu laden.'
 				: 'Ungeschützt: der Server sieht deine echte IP. Nur für Images mit Prüfsumme.'
-			: 'Braucht einen Tor-Proxy auf 127.0.0.1:9150.'
+			: 'Braucht einen Tor-Proxy auf 127.0.0.1:9250.'
 	);
 
 	const verdictLabel: Record<ScanVerdict, string> = {
